@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QBolt Table Viewer</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d13;--bg2:#11141c;--bg3:#181c28;--bg4:#1f2436;
+  --border:#252a40;--accent:#34d399;--accentDark:#26b985;--teal:#00cec9;
+  --red:#ff5f74;--yellow:#fdcb6e;--green:#55efc4;
+  --text:#dde4ff;--text2:#7a85a8;--text3:#3d4466;
+  --mono:'JetBrains Mono',monospace;--ui:'Syne',sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--ui);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* HEADER */
+.hdr{height:46px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;letter-spacing:-.3px;white-space:nowrap;user-select:none}
+.logo-mark{width:26px;height:26px;background:linear-gradient(135deg,var(--accent),var(--teal));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 10px rgba(52,211,153,.45)}
+.logo em{color:var(--accent);font-style:normal}
+.hdr-title{font-size:12px;font-weight:600;color:var(--text3);border-left:1px solid var(--border);padding-left:12px;margin-left:2px}
+.hdr-space{flex:1}
+.conn-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--text2);padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 6px var(--accent)}
+.close-btn{width:30px;height:30px;border-radius:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .12s}
+.close-btn:hover{color:var(--red);border-color:rgba(255,95,116,.35);background:var(--bg4)}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.side{width:220px;flex-shrink:0;background:#0f111a;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.side-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 6px;flex-shrink:0}
+.side-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text3)}
+.side-refresh{width:22px;height:22px;border-radius:5px;background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.side-refresh:hover{background:var(--bg3);color:var(--text)}
+.side-list{flex:1;overflow-y:auto;padding-bottom:8px}
+.side-empty{padding:14px 12px;font-family:var(--mono);font-size:11px;color:var(--text3);font-style:italic;line-height:1.6}
+.tbl-row{display:flex;align-items:center;gap:8px;padding:8px 12px;margin:1px 6px;border-radius:6px;font-family:var(--mono);font-size:12px;color:var(--text2);cursor:pointer;transition:all .1s}
+.tbl-row:hover{background:var(--bg3);color:var(--text)}
+.tbl-row.active{background:var(--bg4);color:var(--accent)}
+.tbl-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl-count{font-size:9.5px;color:var(--text3);flex-shrink:0}
+.tbl-row.active .tbl-count{color:var(--accent);opacity:.75}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.content-idle{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-family:var(--mono);font-size:12px;text-align:center}
+
+.tbl-bar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;flex-wrap:wrap}
+.tbl-bar-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)}
+.tbl-bar-meta{font-family:var(--mono);font-size:10.5px;color:var(--text3)}
+.tbl-bar-space{flex:1}
+.pg-select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-family:var(--mono);font-size:11px;padding:5px 8px;outline:none}
+.pg-btn{width:26px;height:26px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .1s}
+.pg-btn:hover:not(:disabled){color:var(--text);background:var(--bg4)}
+.pg-btn:disabled{opacity:.3;cursor:not-allowed}
+.pg-label{font-family:var(--mono);font-size:11px;color:var(--text2);white-space:nowrap;padding:0 2px}
+
+.grid-wrap{flex:1;overflow:auto;padding:0}
+table.data-table{border-collapse:collapse;font-family:var(--mono);font-size:11.5px;width:max-content;min-width:100%}
+table.data-table th{background:var(--bg3);color:var(--accent);text-align:left;padding:8px 14px;border-bottom:1px solid var(--border);position:sticky;top:0;white-space:nowrap;z-index:1}
+table.data-table td{padding:6px 14px;border-bottom:1px solid rgba(37,42,64,.5);color:var(--text);white-space:nowrap;max-width:340px;overflow:hidden;text-overflow:ellipsis}
+table.data-table tr:hover td{background:rgba(52,211,153,.05)}
+.cell-null{color:var(--text3);font-style:italic}
+.grid-empty{padding:24px;font-family:var(--mono);font-size:11.5px;color:var(--text3);font-style:italic;text-align:center}
+
+/* NO-SESSION SCREEN */
+.nosession{position:fixed;inset:0;z-index:500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:32px}
+.nosession.on{display:flex}
+.nosession-hint{font-family:var(--mono);font-size:12px;color:var(--text2);max-width:320px;line-height:1.7}
+
+/* LOADER */
+.loader{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .35s ease}
+.loader.fade{opacity:0;pointer-events:none}
+.loader-logo{font-family:var(--ui);font-size:20px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:9px}
+.loader-logo svg{filter:drop-shadow(0 0 8px var(--accent))}
+.loader-sub{font-family:var(--mono);font-size:11px;color:var(--text3)}
+.loader-bar-wrap{width:220px;height:3px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.loader-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--teal));border-radius:3px;animation:barFlow 1s linear forwards}
+@keyframes barFlow{0%{width:0%}100%{width:97%}}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+</style>
+</head>
+<body>
+
+<div class="loader" id="loader">
+  <div class="loader-logo">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    QBolt
+  </div>
+  <div class="loader-bar-wrap"><div class="loader-bar"></div></div>
+  <div class="loader-sub">Table Viewer</div>
+</div>
+
+<div class="nosession" id="noSession">
+  <div class="logo-mark" style="width:44px;height:44px;font-size:20px;border-radius:11px;box-shadow:0 0 18px rgba(52,211,153,.5)">⚡</div>
+  <div style="font-weight:800;font-size:19px">No active QBolt session</div>
+  <div class="nosession-hint">Connect to a database in the main QBolt IDE tab first — this viewer reuses that connection. Once connected, reopen Table Viewer.</div>
+</div>
+
+<div class="hdr">
+  <div class="logo"><div class="logo-mark">⚡</div>Q<em>Bolt</em></div>
+  <div class="hdr-title">Table Viewer</div>
+  <div class="hdr-space"></div>
+  <div class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connPillText">Connecting…</span></div>
+  <button class="close-btn" onclick="window.close()" title="Close">✕</button>
+</div>
+
+<div class="main">
+  <div class="side">
+    <div class="side-head">
+      <span class="side-title">Tables</span>
+      <button class="side-refresh" id="refreshBtn" onclick="loadTables()" title="Refresh">⟳</button>
+    </div>
+    <div class="side-list" id="tableList">
+      <div class="side-empty">Loading…</div>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="content-idle" id="contentIdle">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".35"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      Select a table on the left to browse its rows
+    </div>
+  </div>
+</div>
+
+<script type="module">
+const SESSION_KEY = 'qbolt_session';
+let dbClient = null;
+let tables = [];      // [{name, count}]
+let activeTable = null;
+let page = 0;
+let pageSize = 50;
+let rowCount = 0;
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function getSession(){
+  try{
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+
+async function init(){
+  const session = getSession();
+  if(!session || !session.url){
+    document.getElementById('noSession').classList.add('on');
+    dismissLoader();
+    return;
+  }
+  try{
+    const { createClient } = await import('https://esm.sh/@libsql/client/web');
+    dbClient = createClient({ url: session.url, authToken: session.token || undefined });
+    await dbClient.execute('SELECT 1');
+    let host = session.url;
+    try { host = new URL(session.url.replace('libsql://','https://')).hostname; } catch(e){}
+    document.getElementById('connPillText').textContent = host;
+    dismissLoader();
+    await loadTables();
+  }catch(e){
+    document.getElementById('connPillText').textContent = 'Connection failed';
+    document.getElementById('connPill').style.borderColor = 'rgba(255,95,116,.4)';
+    document.querySelector('.conn-dot').style.background = 'var(--red)';
+    dismissLoader();
+    document.getElementById('tableList').innerHTML =
+      `<div class="side-empty" style="color:var(--red)">Failed to connect: ${esc(e?.message || String(e))}</div>`;
+  }
+}
+
+function dismissLoader(){
+  const l = document.getElementById('loader');
+  l.classList.add('fade');
+  setTimeout(()=>l.remove(), 380);
+}
+
+async function loadTables(){
+  if(!dbClient) return;
+  const list = document.getElementById('tableList');
+  list.innerHTML = '<div class="side-empty">Loading…</div>';
+  try{
+    const res = await dbClient.execute(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    );
+    const names = res.rows.map(r => r.name);
+    if(names.length === 0){
+      list.innerHTML = '<div class="side-empty">No tables yet</div>';
+      tables = [];
+      return;
+    }
+    tables = [];
+    for(const name of names){
+      let count = null;
+      try{
+        const cRes = await dbClient.execute(`SELECT COUNT(*) AS c FROM "${name}"`);
+        count = cRes.rows[0]?.c ?? null;
+      }catch(e){ /* leave count null if it fails */ }
+      tables.push({ name, count });
+    }
+    renderTableList();
+    // Keep browsing the same table after a refresh, if it still exists
+    if(activeTable && tables.find(t => t.name === activeTable)){
+      openTable(activeTable, page);
+    }
+  }catch(e){
+    list.innerHTML = `<div class="side-empty" style="color:var(--red)">Failed to load tables: ${esc(e?.message||String(e))}</div>`;
+  }
+}
+window.loadTables = loadTables;
+
+function renderTableList(){
+  const list = document.getElementById('tableList');
+  list.innerHTML = '';
+  tables.forEach(t=>{
+    const row = document.createElement('div');
+    row.className = 'tbl-row' + (t.name === activeTable ? ' active' : '');
+    row.innerHTML = `<span style="font-size:12px">🗂</span><span class="tbl-name">${esc(t.name)}</span><span class="tbl-count">${t.count===null?'':t.count}</span>`;
+    row.onclick = () => openTable(t.name, 0);
+    list.appendChild(row);
+  });
+}
+
+async function openTable(name, toPage){
+  activeTable = name;
+  page = toPage;
+  renderTableList();
+
+  const content = document.getElementById('content');
+  content.innerHTML = `
+    <div class="tbl-bar">
+      <span class="tbl-bar-title">🗂 ${esc(name)}</span>
+      <span class="tbl-bar-meta" id="rowMeta">…</span>
+      <div class="tbl-bar-space"></div>
+      <span class="pg-label">Rows per page</span>
+      <select class="pg-select" id="pageSizeSel">
+        <option value="25">25</option>
+        <option value="50" selected>50</option>
+        <option value="100">100</option>
+        <option value="250">250</option>
+      </select>
+      <button class="pg-btn" id="prevBtn" title="Previous page">◀</button>
+      <span class="pg-label" id="pageLabel">Page 1</span>
+      <button class="pg-btn" id="nextBtn" title="Next page">▶</button>
+    </div>
+    <div class="grid-wrap" id="gridWrap"><div class="grid-empty">Loading rows…</div></div>
+  `;
+  document.getElementById('pageSizeSel').value = String(pageSize);
+  document.getElementById('pageSizeSel').onchange = (e)=>{
+    pageSize = parseInt(e.target.value) || 50;
+    openTable(name, 0);
+  };
+  document.getElementById('prevBtn').onclick = () => { if(page > 0) loadPage(name, page - 1); };
+  document.getElementById('nextBtn').onclick = () => loadPage(name, page + 1);
+
+  await loadPage(name, page);
+}
+
+async function loadPage(name, toPage){
+  page = toPage;
+  const gridWrap = document.getElementById('gridWrap');
+  gridWrap.innerHTML = '<div class="grid-empty">Loading rows…</div>';
+  try{
+    const countRes = await dbClient.execute(`SELECT COUNT(*) AS c FROM "${name}"`);
+    rowCount = countRes.rows[0]?.c ?? 0;
+
+    const res = await dbClient.execute({
+      sql: `SELECT * FROM "${name}" LIMIT ? OFFSET ?`,
+      args: [pageSize, page * pageSize]
+    });
+    renderGrid(res);
+
+    const totalPages = Math.max(1, Math.ceil(rowCount / pageSize));
+    document.getElementById('rowMeta').textContent = `${rowCount} row${rowCount===1?'':'s'} total`;
+    document.getElementById('pageLabel').textContent = `Page ${page + 1} of ${totalPages}`;
+    document.getElementById('prevBtn').disabled = page <= 0;
+    document.getElementById('nextBtn').disabled = (page + 1) >= totalPages;
+  }catch(e){
+    gridWrap.innerHTML = `<div class="grid-empty" style="color:var(--red)">Failed to load rows: ${esc(e?.message||String(e))}</div>`;
+  }
+}
+
+function renderGrid(res){
+  const cols = res.columns || [];
+  const rows = res.rows || [];
+  const gridWrap = document.getElementById('gridWrap');
+  if(rows.length === 0){
+    gridWrap.innerHTML = '<div class="grid-empty">No rows in this table</div>';
+    return;
+  }
+  const table = document.createElement('table');
+  table.className = 'data-table';
+  const thead = document.createElement('tr');
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; thead.appendChild(th); });
+  table.appendChild(thead);
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      const v = r[c];
+      if(v === null || v === undefined){ td.textContent = 'NULL'; td.className = 'cell-null'; }
+      else td.textContent = String(v);
+      td.title = td.textContent;
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  gridWrap.innerHTML = '';
+  gridWrap.appendChild(table);
+}
+
+init();
+</script>
+</body>
+</html>
