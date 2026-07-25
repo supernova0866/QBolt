@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QBolt IDE</title>
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/sql/sql.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/closebrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/selection/active-line.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/comment/comment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
+<script src="engine/autocomplete.js"></script>
+<script src="engine/verifier.js"></script>
+<script src="engine/formatter.js"></script>
+<style>
+:root {
+  --bg:#0b0d13; --bg2:#11141c; --bg3:#181c28; --bg4:#1f2436;
+  --panel:#0f111a; --border:#252a40;
+  --accent:#34d399; --accentH:#4ee0ac; --accentDark:#26b985;
+  --teal:#00cec9; --pink:#fd79a8; --yellow:#fdcb6e;
+  --green:#55efc4; --red:#ff5f74;
+  --text:#dde4ff; --text2:#7a85a8; --text3:#3d4466;
+  --mono:'JetBrains Mono',monospace; --ui:'Syne',sans-serif;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+[draggable]{cursor:default!important;}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);display:flex;flex-direction:column}
+
+/* TITLEBAR */
+.titlebar{height:46px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px;flex-shrink:0;z-index:200}
+.logo{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;letter-spacing:-.3px;white-space:nowrap;user-select:none}
+.logo-mark{width:26px;height:26px;background:linear-gradient(135deg,var(--accent),var(--teal));border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 0 10px rgba(52,211,153,.45);flex-shrink:0}
+.logo em{color:var(--accent);font-style:normal}
+.mode-select{display:flex;align-items:center;gap:6px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:3px;margin-left:6px}
+.mode-opt{padding:5px 13px;border-radius:5px;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .12s;user-select:none}
+.mode-opt.active{background:var(--accent);color:#04140d}
+.mode-opt:hover:not(.active){color:var(--text)}
+.tb-mid{flex:1;display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden}
+.conn-pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;color:var(--text2);padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.conn-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;box-shadow:0 0 6px var(--accent)}
+.tb-right{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.icon-btn{width:30px;height:30px;border-radius:7px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;transition:all .12s}
+.icon-btn:hover{color:var(--text);background:var(--bg4)}
+.run-btn{display:flex;align-items:center;gap:7px;padding:7px 16px;background:linear-gradient(135deg,var(--accent),var(--accentDark));border:none;border-radius:8px;color:#04140d;font-family:var(--ui);font-weight:700;font-size:13px;cursor:pointer;transition:all .15s;box-shadow:0 2px 14px rgba(52,211,153,.35);white-space:nowrap}
+.run-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(52,211,153,.5);filter:brightness(1.08)}
+.run-btn:active{transform:none}
+.run-btn.running{background:linear-gradient(135deg,#ff5f74,#b0002e);box-shadow:0 2px 14px rgba(255,95,116,.35);color:#fff}
+
+/* WORKSPACE */
+.workspace{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:216px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s ease}
+.sidebar.hidden{width:0}
+.sb-sec{padding:12px 12px 5px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;color:var(--text3)}
+.sb-div{height:1px;background:var(--border);margin:7px 10px}
+.sb-conn-card{margin:4px 10px;padding:10px 11px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;font-family:var(--mono);font-size:10.5px}
+.sb-conn-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;color:var(--text2)}
+.sb-conn-row b{color:var(--text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.sb-conn-status{display:flex;align-items:center;gap:6px;font-weight:700;color:var(--accent);margin-bottom:6px}
+.sb-disconnect{width:100%;margin-top:8px;padding:6px;border-radius:6px;background:var(--bg4);border:1px solid var(--border);color:var(--text2);font-family:var(--ui);font-size:10.5px;font-weight:700;cursor:pointer;transition:all .12s}
+.sb-disconnect:hover{color:var(--red);border-color:rgba(255,95,116,.4)}
+.sb-keys{padding:10px 14px 14px;font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2}
+kbd{font-family:var(--mono);font-size:9.5px;padding:1px 5px;background:var(--bg4);border-radius:3px;border:1px solid var(--border);color:var(--text2)}
+.sb-snips{flex:1;overflow-y:auto;min-height:0}
+.sb-snip{display:flex;align-items:center;gap:7px;padding:6px 12px;margin:1px 6px;font-family:var(--mono);font-size:11px;color:var(--text2);cursor:pointer;border-radius:5px;transition:all .1s}
+.sb-snip:hover{background:var(--bg3);color:var(--text)}
+.settings-anchor{padding:6px 8px 8px;border-top:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;gap:2px;}
+.settings-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 10px;border-radius:6px;background:transparent;border:none;color:var(--text2);font-family:var(--ui);font-size:12px;font-weight:600;cursor:pointer;transition:all .12s;text-align:left;line-height:1;}
+.settings-btn:hover{background:var(--bg3);color:var(--text);}
+.settings-btn svg{flex-shrink:0;opacity:.8;}
+
+/* CONTENT */
+.content{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.editor-wrap{flex:1;overflow:hidden;position:relative}
+
+/* CODEMIRROR */
+.CodeMirror{height:100%!important;font-family:var(--mono)!important;font-size:13.5px!important;line-height:1.75!important;background:var(--bg)!important;color:#cdd6f4!important}
+.CodeMirror-scroll{padding-bottom:20px}
+.CodeMirror-gutters{background:var(--bg2)!important;border-right:1px solid var(--border)!important}
+.CodeMirror-linenumber{color:var(--text3)!important;font-size:11.5px;padding-right:8px}
+.CodeMirror-activeline-background{background:rgba(52,211,153,.05)!important}
+.CodeMirror-cursor{border-left:2px solid var(--accent)!important}
+.CodeMirror-selected{background:rgba(52,211,153,.2)!important}
+.cm-keyword{color:#89dceb!important;font-weight:600} .cm-def{color:#89dceb!important} .cm-variable{color:#cdd6f4!important}
+.cm-string,.cm-string-2{color:#a6e3a1!important} .cm-comment{color:#585b70!important;font-style:italic}
+.cm-number{color:#fab387!important} .cm-operator{color:#f9c74f!important}
+.cm-builtin{color:#f38ba8!important} .cm-atom{color:#fab387!important}
+.cm-error{color:var(--red)!important;background:rgba(255,95,116,.1)!important}
+.error-line{background:rgba(255,95,116,.07)!important}
+
+.find-bar{display:none;position:absolute;top:8px;right:12px;z-index:50;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:6px 10px;gap:6px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+.find-bar.on{display:flex}
+.find-input{background:var(--bg2);border:1px solid var(--border);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:12px;padding:4px 8px;outline:none;width:155px}
+.find-input:focus{border-color:var(--accent)}
+.find-btn{width:22px;height:22px;border-radius:4px;background:transparent;border:none;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .1s}
+.find-btn:hover{background:var(--bg4);color:var(--text)}
+
+/* RESIZE */
+.resize-h{height:4px;cursor:ns-resize;background:transparent;flex-shrink:0;transition:background .15s}
+.resize-h:hover,.resize-h.drag{background:var(--accent)}
+
+/* OUTPUT PANEL */
+.out-panel{height:260px;flex-shrink:0;background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-direction:column;transition:height .15s}
+.out-panel.collapsed{height:35px;overflow:hidden}
+.out-header{display:flex;align-items:center;height:35px;border-bottom:1px solid var(--border);flex-shrink:0}
+.o-tab{padding:0 15px;height:35px;display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text2);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;user-select:none}
+.o-tab:hover{color:var(--text)}
+.o-tab.active{color:var(--text);border-bottom-color:var(--accent)}
+.err-badge{font-size:9px;padding:1px 5px;border-radius:8px;background:var(--red);color:#fff;display:none}
+.err-badge.on{display:inline}
+.out-acts{margin-left:auto;display:flex;gap:3px;padding-right:8px}
+.o-ico{width:22px;height:22px;border-radius:4px;background:transparent;border:none;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:all .1s}
+.o-ico:hover{color:var(--text);background:var(--bg3)}
+.out-body{flex:1;overflow:auto;padding:10px 14px}
+#output{font-family:var(--mono);font-size:12.5px;line-height:1.75;white-space:pre-wrap;word-break:break-all}
+.o-out{color:var(--text)} .o-err{color:var(--red)} .o-info{color:var(--text2);font-style:italic} .o-ok{color:var(--green)}
+
+/* RESULTS TABLE */
+.res-table-wrap{overflow:auto}
+table.res-table{border-collapse:collapse;font-family:var(--mono);font-size:11.5px;width:max-content;min-width:100%}
+table.res-table th{background:var(--bg3);color:var(--accent);text-align:left;padding:6px 12px;border-bottom:1px solid var(--border);position:sticky;top:0;white-space:nowrap}
+table.res-table td{padding:5px 12px;border-bottom:1px solid rgba(37,42,64,.5);color:var(--text);white-space:nowrap}
+table.res-table tr:hover td{background:rgba(52,211,153,.05)}
+.res-meta{font-family:var(--mono);font-size:10.5px;color:var(--text3);padding:6px 2px 10px}
+.cell-null{color:var(--text3);font-style:italic}
+
+/* SCHEMA */
+.schema-table{margin:0 0 12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.schema-head{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text)}
+.schema-head .tc{font-size:9px;padding:1px 7px;border-radius:8px;background:rgba(52,211,153,.15);color:var(--accent);margin-left:auto}
+.schema-cols{display:none;border-top:1px solid var(--border);padding:6px 0}
+.schema-table.open .schema-cols{display:block}
+.schema-col{display:flex;gap:10px;padding:4px 14px;font-family:var(--mono);font-size:11px;color:var(--text2)}
+.schema-col .cn{color:var(--text);min-width:120px}
+.schema-col .ct{color:var(--teal)}
+.schema-col .cpk{color:var(--yellow);font-size:9.5px;margin-left:auto}
+
+#histList{font-family:var(--mono);font-size:11.5px}
+.hr{padding:8px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.hr:hover{background:var(--bg3)}
+.hm{display:flex;justify-content:space-between;margin-bottom:3px}
+.hn{color:var(--accent)} .ht{color:var(--text3);font-size:10px} .hp{color:var(--text2);font-size:10.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* STATUS */
+.statusbar{height:22px;flex-shrink:0;background:linear-gradient(90deg,var(--accent),var(--accentDark));display:flex;align-items:center;padding:0 12px;gap:16px}
+.st{font-family:var(--mono);font-size:10.5px;color:rgba(4,20,13,.7);display:flex;align-items:center;gap:4px;font-weight:600}
+.st b{color:#04140d;font-weight:700} .st-r{margin-left:auto}
+
+/* TOAST */
+.toast-stack{position:fixed;bottom:36px;right:18px;z-index:9999;display:flex;flex-direction:column-reverse;gap:6px;pointer-events:none;}
+.toast-item{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:8px 13px;font-family:var(--mono);font-size:12px;color:var(--text);box-shadow:0 6px 24px rgba(0,0,0,.5);transform:translateY(8px);opacity:0;transition:transform .2s ease,opacity .2s ease;display:flex;align-items:center;gap:8px;max-width:300px;}
+.toast-item.on{transform:translateY(0);opacity:1;}
+.toast-item.out{transform:translateY(8px);opacity:0;}
+.toast-count{font-size:10px;color:var(--text3);font-style:italic;font-weight:400;white-space:nowrap;}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(4,20,13,.3);border-top-color:#04140d;border-radius:50%;animation:spin .55s linear infinite}
+.spin-light{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+::-webkit-scrollbar{width:5px;height:5px} ::-webkit-scrollbar-track{background:var(--bg2)} ::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px} ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* DESKTOP-ONLY SCREEN */
+.mob{display:none;position:fixed;inset:0;z-index:99999;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:32px}
+@media(max-width:600px){.mob{display:flex}}
+.mob-hint{font-family:var(--mono);font-size:10.5px;color:var(--text3);}
+
+/* LOADING OVERLAY */
+.loader-overlay{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;transition:opacity .4s ease;}
+.loader-overlay.hidden{opacity:0;pointer-events:none;}
+.loader-logo{font-family:var(--ui);font-size:26px;font-weight:800;color:var(--text);display:flex;align-items:center;gap:10px;}
+.loader-logo svg{filter:drop-shadow(0 0 10px var(--accent));}
+.loader-bar-wrap{width:320px;height:4px;background:var(--bg4);border-radius:4px;overflow:hidden;}
+.loader-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--teal));border-radius:4px;}
+@keyframes loaderFlow{0%{width:0%;}100%{width:97%;}}
+.loader-bar.flowing{animation:loaderFlow 1.1s linear forwards;}
+.loader-text{font-family:var(--mono);font-size:11.5px;color:var(--text3);min-height:18px;text-align:center;max-width:340px;line-height:1.5;transition:opacity .25s ease;}
+
+/* CONNECTION SCREEN */
+.conn-overlay{position:fixed;inset:0;z-index:9000;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:0;}
+.conn-overlay.on{display:flex;}
+.conn-card{width:380px;max-width:90vw;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:28px 26px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.conn-logo{display:flex;align-items:center;gap:10px;font-family:var(--ui);font-weight:800;font-size:20px;margin-bottom:4px;}
+.conn-sub{font-family:var(--mono);font-size:11px;color:var(--text2);margin-bottom:22px;line-height:1.6;}
+.conn-label{font-family:var(--mono);font-size:10.5px;color:var(--text2);margin-bottom:5px;display:block;font-weight:600;letter-spacing:.3px;}
+.conn-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12.5px;padding:9px 11px;outline:none;margin-bottom:14px;transition:border-color .12s;}
+.conn-input:focus{border-color:var(--accent);}
+.conn-btn{width:100%;padding:10px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accentDark));border:none;color:#04140d;font-family:var(--ui);font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s;box-shadow:0 2px 14px rgba(52,211,153,.3);}
+.conn-btn:hover{filter:brightness(1.08);transform:translateY(-1px);}
+.conn-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+.conn-err{font-family:var(--mono);font-size:11px;color:var(--red);background:rgba(255,95,116,.1);border:1px solid rgba(255,95,116,.25);border-radius:6px;padding:8px 10px;margin-bottom:14px;display:none;line-height:1.5;}
+.conn-err.on{display:block;}
+.conn-note{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:16px;line-height:1.7;text-align:center;}
+.conn-note a{color:var(--accent);text-decoration:none;}
+.conn-note a:hover{text-decoration:underline;}
+
+/* SETTINGS */
+.settings-overlay{position:fixed;inset:0;z-index:9600;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;}
+.settings-overlay.open{display:flex;}
+.settings-panel{background:var(--bg3);border:1px solid var(--border);border-radius:14px;min-width:360px;max-width:440px;box-shadow:0 20px 60px rgba(0,0,0,.6);overflow:hidden;}
+.settings-header{padding:18px 22px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.settings-title{font-size:15px;font-weight:800;color:var(--text);}
+.settings-close{width:26px;height:26px;border-radius:6px;background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .1s;}
+.settings-close:hover{background:var(--bg4);color:var(--text);}
+.settings-body{padding:14px 22px 20px;display:flex;flex-direction:column;gap:2px;}
+.settings-section{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);padding:10px 0 4px;}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:8px;transition:background .1s;}
+.settings-row:hover{background:var(--bg4);}
+.settings-info{display:flex;flex-direction:column;gap:2px;}
+.settings-info span{font-size:13px;font-weight:600;color:var(--text);}
+.settings-info small{font-size:11px;color:var(--text3);}
+.toggle{position:relative;width:38px;height:21px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-slider{position:absolute;inset:0;background:var(--bg4);border-radius:21px;cursor:pointer;transition:.2s;}
+.toggle-slider::before{content:'';position:absolute;width:15px;height:15px;left:3px;top:3px;background:var(--text3);border-radius:50%;transition:.2s;}
+.toggle input:checked+.toggle-slider{background:var(--accent);}
+.toggle input:checked+.toggle-slider::before{transform:translateX(17px);background:#04140d;}
+
+/* AUTOCOMPLETE HINT POPUP */
+.CodeMirror-hints{
+  background:var(--bg3)!important;border:1px solid var(--border)!important;
+  border-radius:8px!important;box-shadow:0 8px 28px rgba(0,0,0,.55)!important;
+  padding:4px!important;font-family:var(--mono)!important;
+}
+.CodeMirror-hint{
+  padding:5px 9px!important;border-radius:5px!important;color:var(--text2)!important;
+}
+.CodeMirror-hint-active{
+  background:var(--bg4)!important;color:var(--text)!important;
+}
+
+/* WARNING CONFIRM MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:22px 24px;min-width:340px;max-width:460px;box-shadow:0 16px 48px rgba(0,0,0,.6);}
+.modal-title{font-size:15px;font-weight:800;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.modal-warning{font-family:var(--mono);font-size:11.5px;color:var(--red);background:rgba(255,95,116,.1);border:1px solid rgba(255,95,116,.25);border-radius:6px;padding:10px 12px;margin-bottom:16px;line-height:1.6;white-space:pre-line;max-height:220px;overflow:auto;}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+.modal-btn{padding:7px 16px;border-radius:7px;font-family:var(--ui);font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .12s;}
+.modal-btn.cancel{background:var(--bg4);color:var(--text2);}
+.modal-btn.cancel:hover{color:var(--text);}
+.modal-btn.confirm{background:var(--red);color:#fff;}
+.modal-btn.confirm:hover{filter:brightness(1.1);}
+
+/* CONTEXT MENU */
+.ctx-menu{position:fixed;z-index:9000;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:5px;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,.55);opacity:0;transform:scale(.96) translateY(-4px);transition:opacity .12s,transform .12s;pointer-events:none;user-select:none;}
+.ctx-menu.open{opacity:1;transform:scale(1) translateY(0);pointer-events:all;}
+.ctx-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:6px;font-family:var(--ui);font-size:12.5px;font-weight:600;color:var(--text2);cursor:pointer;transition:background .1s,color .1s;}
+.ctx-item:hover{background:var(--bg4);color:var(--text);}
+.ctx-icon{font-size:14px;width:18px;text-align:center;flex-shrink:0;}
+.ctx-label{flex:1;}
+.ctx-kbd{font-family:var(--mono);font-size:9.5px;color:var(--text3);margin-left:auto;}
+.ctx-sep{height:1px;background:var(--border);margin:4px 6px;}
+.ctx-section{padding:5px 10px 3px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);}
+</style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div class="loader-overlay" id="loaderOverlay">
+  <div class="loader-logo">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    QBolt
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+    <div class="loader-bar-wrap"><div class="loader-bar flowing" id="loaderBar"></div></div>
+    <div class="loader-text" id="loaderText">Setting things up...</div>
+  </div>
+</div>
+
+<!-- DESKTOP-ONLY SCREEN (no redirect / no CTA) -->
+<div class="mob">
+  <div class="logo-mark" style="width:48px;height:48px;font-size:22px;border-radius:12px;box-shadow:0 0 20px rgba(52,211,153,.5);">⚡</div>
+  <div style="font-weight:800;font-size:22px;letter-spacing:-.3px;">Q<em style="color:var(--accent);font-style:normal;">Bolt</em></div>
+  <div style="font-family:var(--mono);font-size:12px;color:var(--text2);max-width:260px;line-height:1.7;">QBolt IDE is designed for desktop.<br>Use a larger screen for the full IDE.</div>
+  <div class="mob-hint">no install needed · runs entirely in your browser</div>
+</div>
+
+<!-- CONNECTION SCREEN -->
+<div class="conn-overlay" id="connOverlay">
+  <div class="conn-card">
+    <div class="conn-logo"><div class="logo-mark">⚡</div>Q<em style="color:var(--accent);font-style:normal">Bolt</em></div>
+    <div class="conn-sub">Connect to a Turso database. Credentials stay in memory only — nothing is saved or sent anywhere except your database.</div>
+    <div class="conn-err" id="connErr"></div>
+    <label class="conn-label">Database URL</label>
+    <input class="conn-input" id="connUrl" placeholder="libsql://your-db-name.turso.io" autocomplete="off" spellcheck="false">
+    <label class="conn-label">Auth Token</label>
+    <input class="conn-input" id="connToken" type="password" placeholder="eyJhbGciOiJFZERTQSIs..." autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')connectDb()">
+    <button class="conn-btn" id="connBtn" onclick="connectDb()"><span id="connBtnLabel">Connect</span></button>
+    <div class="conn-note">Get a free database at <a href="https://turso.tech" target="_blank" rel="noopener">turso.tech</a></div>
+  </div>
+</div>
+
+<!-- TITLEBAR -->
+<div class="titlebar">
+  <div class="logo"><div class="logo-mark">⚡</div>Q<em>Bolt</em></div>
+  <div class="mode-select">
+    <div class="mode-opt active" id="modeSql" onclick="setMode('sql')">SQL</div>
+    <div class="mode-opt" id="modeJs" onclick="setMode('js')">JS</div>
+  </div>
+  <div class="tb-mid">
+    <div class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connPillText">Not connected</span></div>
+  </div>
+  <div class="tb-right">
+    <button class="icon-btn" title="Toggle sidebar (Ctrl+B)" onclick="toggleSidebar()">☰</button>
+    <button class="icon-btn" title="Find (Ctrl+F)" onclick="toggleFind()">⌕</button>
+    <button class="icon-btn" title="Format SQL" onclick="formatCode()">✨</button>
+    <button class="icon-btn" title="Download script" onclick="downloadScript()">↓</button>
+    <button class="run-btn" id="runBtn" onclick="runCode()">
+      <span id="runIcon">▶</span><span id="runLabel">Run</span>
+    </button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+  <div class="sidebar" id="sidebar">
+    <div class="sb-sec">Connection</div>
+    <div class="sb-conn-card">
+      <div class="sb-conn-status"><span class="conn-dot" style="background:var(--accent);box-shadow:0 0 5px var(--accent)"></span>Connected</div>
+      <div class="sb-conn-row"><span>Host</span><b id="sbHost">—</b></div>
+      <div class="sb-conn-row"><span>Mode</span><b id="sbMode">SQL</b></div>
+      <button class="sb-disconnect" onclick="disconnectDb()">Disconnect</button>
+    </div>
+    <div class="sb-div"></div>
+    <div class="sb-sec">Snippets</div>
+    <div class="sb-snips" id="sbSnips"></div>
+    <div class="sb-div"></div>
+    <div class="sb-keys">
+      <kbd>Ctrl+Enter</kbd> Run<br>
+      <kbd>Ctrl+/</kbd> Comment<br>
+      <kbd>Ctrl+B</kbd> Sidebar<br>
+      <kbd>Ctrl+F</kbd> Find
+    </div>
+    <div class="settings-anchor">
+      <button class="settings-btn" onclick="openSettings()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Settings
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- EDITOR -->
+    <div class="editor-wrap" id="editorWrap">
+      <textarea id="editorEl"></textarea>
+      <div class="find-bar" id="findBar">
+        <input class="find-input" id="findInput" placeholder="Find…" oninput="doFind()" onkeydown="findKey(event)">
+        <button class="find-btn" onclick="findNext()">↓</button>
+        <button class="find-btn" onclick="findPrev()">↑</button>
+        <button class="find-btn" onclick="toggleFind()">✕</button>
+      </div>
+    </div>
+
+    <!-- RESIZE -->
+    <div class="resize-h" id="resizeH"></div>
+
+    <!-- OUTPUT PANEL -->
+    <div class="out-panel" id="outPanel">
+      <div class="out-header">
+        <div class="o-tab active" id="otOutput" onclick="switchOut('output')">Output <span class="err-badge" id="errBadge">!</span></div>
+        <div class="o-tab" id="otSchema" onclick="switchOut('schema')">Schema</div>
+        <div class="o-tab" id="otHist"    onclick="switchOut('hist')">History</div>
+        <div class="o-tab" id="otConsole" onclick="switchOut('console')">Console</div>
+        <div class="out-acts">
+          <button class="o-ico" title="Refresh schema" id="schemaRefreshBtn" onclick="loadSchema()" style="display:none">⟳</button>
+          <button class="o-ico" title="Clear output" onclick="clearOutput()">🗑</button>
+          <button class="o-ico" id="panToggle" onclick="toggleOut()">▼</button>
+        </div>
+      </div>
+      <div class="out-body" id="bOutput"><div id="output"></div></div>
+      <div class="out-body" id="bSchema" style="display:none"><div id="schemaList"><span style="color:var(--text3);font-style:italic">Connect to a database to see its schema</span></div></div>
+      <div class="out-body" id="bHist" style="display:none"><div id="histList"><span style="color:var(--text3);font-style:italic">No runs yet</span></div></div>
+      <div class="out-body" id="bConsole" style="display:none"><div id="ideConsole"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS -->
+<div class="statusbar">
+  <div class="st">⚡ <b>QBolt</b></div>
+  <div class="st" id="stDriver">SQLite · libSQL (Turso)</div>
+  <div class="st">Ln <b id="stLn">1</b> Col <b id="stCol">1</b></div>
+  <div class="st" id="stSel" style="display:none">Sel <b id="stSelN">0</b></div>
+  <div class="st st-r" id="stMsg"></div>
+</div>
+
+<div class="toast-stack" id="toastStack"></div>
+
+<!-- CONTEXT MENU -->
+<div class="ctx-menu" id="ctxMenu">
+  <div class="ctx-section">Edit</div>
+  <div class="ctx-item" onclick="ctxAction('run')"><span class="ctx-icon">▶</span><span class="ctx-label">Run</span><span class="ctx-kbd">Ctrl+Enter</span></div>
+  <div class="ctx-item" onclick="ctxAction('comment')"><span class="ctx-icon">#</span><span class="ctx-label">Toggle Comment</span><span class="ctx-kbd">Ctrl+/</span></div>
+  <div class="ctx-item" onclick="ctxAction('indent')"><span class="ctx-icon">→</span><span class="ctx-label">Indent</span><span class="ctx-kbd">Tab</span></div>
+  <div class="ctx-item" onclick="ctxAction('dedent')"><span class="ctx-icon">←</span><span class="ctx-label">Dedent</span><span class="ctx-kbd">Shift+Tab</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-section">Selection</div>
+  <div class="ctx-item" onclick="ctxAction('selectall')"><span class="ctx-icon">⬜</span><span class="ctx-label">Select All</span><span class="ctx-kbd">Ctrl+A</span></div>
+  <div class="ctx-item" onclick="ctxAction('selectline')"><span class="ctx-icon">▬</span><span class="ctx-label">Select Line</span><span class="ctx-kbd"></span></div>
+  <div class="ctx-item" onclick="ctxAction('copy')" id="ctxCopy"><span class="ctx-icon">⎘</span><span class="ctx-label">Copy</span><span class="ctx-kbd">Ctrl+C</span></div>
+  <div class="ctx-item" onclick="ctxAction('paste')"><span class="ctx-icon">📋</span><span class="ctx-label">Paste</span><span class="ctx-kbd">Ctrl+V</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item danger" onclick="ctxAction('clearoutput')"><span class="ctx-icon">🗑</span><span class="ctx-label">Clear Output</span><span class="ctx-kbd"></span></div>
+</div>
+
+<!-- WARNING CONFIRM MODAL -->
+<div class="modal-overlay" id="warnModal">
+  <div class="modal">
+    <div class="modal-title">⚠️ Heads up</div>
+    <div class="modal-warning" id="warnBody"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeWarnModal()">Cancel</button>
+      <button class="modal-btn confirm" onclick="confirmWarnModal()">Run anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="settings-overlay" id="settingsOverlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <div class="settings-title">⚙ Settings</div>
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section">Editor</div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Verifier</span><small>Pre-run safety checks (syntax &amp; destructive statements)</small></div>
+        <label class="toggle"><input type="checkbox" id="settingVerifier" checked onchange="saveSetting('verifier',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Autocomplete</span><small>Suggests table &amp; column names from your DB schema</small></div>
+        <label class="toggle"><input type="checkbox" id="settingAutocomplete" checked onchange="saveSetting('autocomplete',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Line numbers</span><small>Show line numbers in editor</small></div>
+        <label class="toggle"><input type="checkbox" id="settingLineNums" checked onchange="saveSetting('lineNums',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Auto Mirror</span><small>Auto-close brackets &amp; quotes</small></div>
+        <label class="toggle"><input type="checkbox" id="settingAutoBracket" checked onchange="saveSetting('autoBracket',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-section">Session</div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Credentials</span><small>DB URL &amp; token are kept in memory only — never persisted to disk</small></div>
+      </div>
+      <div class="settings-row">
+        <div class="settings-info"><span>Disconnect</span><small>Clear the session and return to the connection screen</small></div>
+        <button class="sb-disconnect" style="width:auto;padding:6px 14px;margin:0" onclick="disconnectDb()">Disconnect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+// ════════════════════════════════════════
+// SNIPPETS
+// ════════════════════════════════════════
+const SQL_SNIPS = [
+  { label:'List tables', code:`SELECT name FROM sqlite_master WHERE type='table';` },
+  { label:'Create table', code:`CREATE TABLE users (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  name TEXT NOT NULL,\n  email TEXT UNIQUE,\n  created_at TEXT DEFAULT CURRENT_TIMESTAMP\n);` },
+  { label:'Insert row', code:`INSERT INTO users (name, email) VALUES ('Alice', 'alice@example.com');` },
+  { label:'Select + filter', code:`SELECT * FROM users\nWHERE name LIKE 'A%'\nORDER BY created_at DESC\nLIMIT 20;` },
+  { label:'Join', code:`SELECT orders.id, users.name, orders.total\nFROM orders\nJOIN users ON users.id = orders.user_id\nORDER BY orders.total DESC;` },
+  { label:'Aggregate', code:`SELECT user_id, COUNT(*) AS order_count, SUM(total) AS total_spent\nFROM orders\nGROUP BY user_id\nHAVING COUNT(*) > 1;` },
+];
+const JS_SNIPS = [
+  { label:'Run a query', code:`const result = await db.execute("SELECT * FROM users LIMIT 5");\nconsole.log(result.rows);` },
+  { label:'Insert with params', code:`await db.execute({\n  sql: "INSERT INTO users (name, email) VALUES (?, ?)",\n  args: ["Bob", "bob@example.com"]\n});\nconsole.log("Inserted!");` },
+  { label:'Batch insert', code:`const names = ["Alice", "Bob", "Charlie", "Diana"];\n\nawait db.batch(\n  names.map(name => ({\n    sql: "INSERT INTO users (name) VALUES (?)",\n    args: [name]\n  }))\n);\n\nconsole.log(\`Inserted \${names.length} rows\`);` },
+  { label:'Seed from JSON', code:`const data = [\n  { name: "Alice", age: 30 },\n  { name: "Bob",   age: 25 }\n];\n\nfor (const row of data) {\n  await db.execute({\n    sql: "INSERT INTO people (name, age) VALUES (?, ?)",\n    args: [row.name, row.age]\n  });\n  console.log("Inserted:", row.name);\n}` },
+];
+
+// ════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════
+let editor, dbClient = null, mode = 'sql', isRunning = false;
+let runHistory = [], errMarkers = [];
+let ideSettings = { lineNums:true, autoBracket:true, autocomplete:true, verifier:true };
+
+const DEFAULT_SQL = `-- Welcome to QBolt ⚡
+-- Connected to your Turso database. Try:
+
+SELECT name FROM sqlite_master WHERE type='table';
+`;
+const DEFAULT_JS = `// QBolt JS mode — automate your database with plain JavaScript.
+// A \`db\` object is in scope, matching the Turso client API:
+//   await db.execute(sql)
+//   await db.execute({ sql, args })
+//   await db.batch([{ sql, args }, ...])
+
+const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
+console.log(result.rows);
+`;
+
+// ════════════════════════════════════════
+// LOADER
+// ════════════════════════════════════════
+setTimeout(()=>{
+  const overlay = document.getElementById('loaderOverlay');
+  overlay.classList.add('hidden');
+  setTimeout(()=>overlay.remove(), 450);
+  document.getElementById('connOverlay').classList.add('on');
+  document.getElementById('connUrl').focus();
+}, 1100);
+
+// ════════════════════════════════════════
+// EDITOR INIT
+// ════════════════════════════════════════
+function initEditor(){
+  editor = CodeMirror.fromTextArea(document.getElementById('editorEl'), {
+    mode:'text/x-sql', lineNumbers:true, styleActiveLine:true,
+    matchBrackets:true, autoCloseBrackets:{pairs:'()[]{}\'\'""', explode:'[]{}'},
+    indentUnit:2, tabSize:2, indentWithTabs:false,
+    extraKeys:{
+      'Ctrl-Enter':()=>runCode(), 'Cmd-Enter':()=>runCode(),
+      'Ctrl-/':cm=>cm.execCommand('toggleComment'),
+      'Cmd-/' :cm=>cm.execCommand('toggleComment'),
+      'Ctrl-B':()=>toggleSidebar(), 'Cmd-B':()=>toggleSidebar(),
+      'Tab':cm=>cm.somethingSelected()?cm.indentSelection('add'):cm.replaceSelection('  ','end'),
+    }
+  });
+  editor.setValue(DEFAULT_SQL);
+  if(window.QBoltAutocomplete){
+    QBoltAutocomplete.attach(editor);
+    QBoltAutocomplete.setEnabled(ideSettings.autocomplete);
+    ideLog('info', 'Loaded engine/autocomplete.js');
+  } else {
+    ideLog('warn', 'autocomplete.js not found — schema suggestions disabled');
+    ideSettings.autocomplete = false;
+  }
+  editor.on('cursorActivity',()=>{
+    const c=editor.getCursor();
+    document.getElementById('stLn').textContent=c.line+1;
+    document.getElementById('stCol').textContent=c.ch+1;
+    const sel=editor.getSelection();
+    const el=document.getElementById('stSel');
+    if(sel.length){el.style.display='flex';document.getElementById('stSelN').textContent=sel.length}
+    else el.style.display='none';
+  });
+  setTimeout(()=>editor.refresh(),80);
+}
+
+function setMode(m){
+  mode = m;
+  document.getElementById('modeSql').classList.toggle('active', m==='sql');
+  document.getElementById('modeJs').classList.toggle('active', m==='js');
+  document.getElementById('sbMode').textContent = m.toUpperCase();
+  const cur = editor.getValue().trim();
+  const isDefault = cur === DEFAULT_SQL.trim() || cur === DEFAULT_JS.trim() || cur === '';
+  editor.setOption('mode', m === 'sql' ? 'text/x-sql' : 'javascript');
+  if(isDefault) editor.setValue(m === 'sql' ? DEFAULT_SQL : DEFAULT_JS);
+  renderSnippets();
+  clearErrMarkers();
+  editor.focus();
+}
+window.setMode = setMode;
+
+function renderSnippets(){
+  const el = document.getElementById('sbSnips');
+  const list = mode === 'sql' ? SQL_SNIPS : JS_SNIPS;
+  el.innerHTML = '';
+  list.forEach(sn=>{
+    const d = document.createElement('div');
+    d.className = 'sb-snip';
+    d.innerHTML = `<span>${mode==='sql'?'📄':'⚙'}</span><span>${esc(sn.label)}</span>`;
+    d.onclick = () => { editor.setValue(sn.code); editor.focus(); showToast('📋 Loaded: '+sn.label); };
+    el.appendChild(d);
+  });
+}
+
+// ════════════════════════════════════════
+// CONNECTION
+// ════════════════════════════════════════
+async function connectDb(){
+  const url = document.getElementById('connUrl').value.trim();
+  const token = document.getElementById('connToken').value.trim();
+  const errEl = document.getElementById('connErr');
+  errEl.classList.remove('on');
+
+  if(!url){ errEl.textContent = 'Please enter a database URL.'; errEl.classList.add('on'); return; }
+
+  const btn = document.getElementById('connBtn');
+  const label = document.getElementById('connBtnLabel');
+  btn.disabled = true;
+  label.innerHTML = '<span class="spin"></span> Connecting…';
+
+  try{
+    const { createClient } = await import('https://esm.sh/@libsql/client/web');
+    const client = createClient({ url, authToken: token || undefined });
+    await client.execute('SELECT 1');
+    dbClient = client;
+    document.getElementById('connOverlay').classList.remove('on');
+    let host = url;
+    try { host = new URL(url.replace('libsql://','https://')).hostname; } catch(e){}
+    document.getElementById('connPillText').textContent = host;
+    document.getElementById('sbHost').textContent = host;
+    ideLog('info', `Connected to ${host}`);
+    showToast('⚡ Connected to database');
+    initIde();
+    loadSchema();
+  }catch(e){
+    errEl.textContent = 'Connection failed: ' + (e?.message || String(e));
+    errEl.classList.add('on');
+    ideLog('error', 'Connection failed: ' + (e?.message || String(e)));
+  }finally{
+    btn.disabled = false;
+    label.textContent = 'Connect';
+  }
+}
+window.connectDb = connectDb;
+
+function disconnectDb(){
+  dbClient = null;
+  document.getElementById('connOverlay').classList.add('on');
+  document.getElementById('connErr').classList.remove('on');
+  document.getElementById('connPillText').textContent = 'Not connected';
+  document.getElementById('schemaList').innerHTML = '<span style="color:var(--text3);font-style:italic">Connect to a database to see its schema</span>';
+  closeSettings();
+  ideLog('info', 'Disconnected');
+  showToast('Disconnected');
+}
+window.disconnectDb = disconnectDb;
+
+let ideInitialized = false;
+function initIde(){
+  if(ideInitialized) return;
+  ideInitialized = true;
+  initEditor();
+  renderSnippets();
+  if(window.QBoltVerifier){ ideLog('info', 'Loaded engine/verifier.js'); }
+  else { ideLog('warn', 'verifier.js not found — pre-run checks disabled'); ideSettings.verifier = false; }
+  if(window.QBoltFormatter){ ideLog('info', 'Loaded engine/formatter.js'); }
+  else { ideLog('warn', 'formatter.js not found — SQL prettify disabled'); }
+  ideLog('info', 'QBolt ready');
+}
+
+// ════════════════════════════════════════
+// RUN
+// ════════════════════════════════════════
+async function runCode(){
+  if(!dbClient){ showToast('⚠️ Connect to a database first'); return; }
+  if(isRunning) return;
+  const code = editor.getValue().trim();
+  if(!code){ printLine('Nothing to run.', 'info'); return; }
+
+  if(ideSettings.verifier && window.QBoltVerifier){
+    const check = QBoltVerifier.verify(code, mode);
+    const errors = (check.issues || []).filter(i => i.severity === 'error');
+    if(!check.ok || errors.length){
+      clearOutput();
+      printLine('✖  Verifier blocked this run:', 'err');
+      (errors.length ? errors : check.issues).forEach(i => printLine('  • ' + i.message, 'err'));
+      document.getElementById('errBadge').classList.add('on');
+      ideLog('warn', 'Verifier blocked run: ' + (errors.length?errors:check.issues).map(e=>e.message).join(' | '));
+      return;
+    }
+    const warnings = (check.issues || []).filter(i => i.severity === 'warning');
+    if(warnings.length){
+      const proceed = await openWarnModal(warnings);
+      if(!proceed){ showToast('Run cancelled'); ideLog('info', 'Run cancelled after verifier warning'); return; }
+      ideLog('warn', 'Proceeded despite warning(s): ' + warnings.map(w=>w.message.split('\n')[0]).join(' | '));
+    }
+  }
+
+  isRunning = true; setRunning(true); clearOutput(); clearErrMarkers();
+  const t0 = performance.now();
+  runHistory.unshift({ code, mode, time:new Date().toLocaleTimeString() });
+  if(runHistory.length > 30) runHistory.pop();
+  renderHistory();
+
+  try{
+    if(mode === 'sql'){
+      await runSql(code);
+      if(isDdl(code)) await autoRefreshSchema();
+    } else {
+      await runJs(code);
+      if(isDdl(code)) await autoRefreshSchema();
+    }
+    printLine(`\n✓  Finished in ${(performance.now()-t0).toFixed(1)} ms`, 'ok');
+  }catch(e){
+    const msg = e?.message || String(e);
+    printLine('\n✗  ' + msg, 'err');
+    document.getElementById('errBadge').classList.add('on');
+    ideLog('error', msg);
+  }finally{
+    isRunning = false; setRunning(false);
+  }
+}
+window.runCode = runCode;
+
+function isDdl(code){
+  return /\b(CREATE|ALTER|DROP|TRUNCATE)\s+(TABLE|VIEW|INDEX)?\b/i.test(code);
+}
+
+let pendingWarnResolve = null;
+function openWarnModal(issues){
+  return new Promise(resolve => {
+    document.getElementById('warnBody').textContent = issues.map(i => '• ' + i.message).join('\n\n');
+    document.getElementById('warnModal').classList.add('open');
+    pendingWarnResolve = resolve;
+  });
+}
+function closeWarnModal(){
+  document.getElementById('warnModal').classList.remove('open');
+  if(pendingWarnResolve){ pendingWarnResolve(false); pendingWarnResolve = null; }
+}
+function confirmWarnModal(){
+  document.getElementById('warnModal').classList.remove('open');
+  if(pendingWarnResolve){ pendingWarnResolve(true); pendingWarnResolve = null; }
+}
+window.closeWarnModal = closeWarnModal;
+window.confirmWarnModal = confirmWarnModal;
+
+function formatCode(){
+  if(mode !== 'sql'){ showToast('⚠️ Formatting only available in SQL mode'); return; }
+  if(!window.QBoltFormatter){ showToast('⚠️ formatter.js not loaded'); return; }
+  if(!editor) return;
+  const formatted = QBoltFormatter.format(editor.getValue());
+  editor.setValue(formatted);
+  ideLog('info', 'Formatted SQL');
+  showToast('✨ Formatted');
+}
+window.formatCode = formatCode;
+
+async function autoRefreshSchema(){
+  if(!dbClient) return;
+  await loadSchema();
+  ideLog('info', 'Schema auto-refreshed (DDL detected)');
+  showToast('🔄 Schema refreshed');
+}
+
+async function runSql(code){
+  const statements = code.split(';').map(s=>s.trim()).filter(Boolean);
+  if(statements.length === 0) return;
+
+  if(statements.length === 1){
+    const res = await dbClient.execute(statements[0]);
+    renderResultSet(res);
+    return;
+  }
+
+  const results = await dbClient.batch(statements.map(sql => ({ sql })), 'write');
+  results.forEach((res, i) => {
+    if(res.rows && res.rows.length){
+      printLine(`Statement ${i+1}:`, 'info');
+      renderResultSet(res);
+    } else {
+      printLine(`Statement ${i+1}: ${res.rowsAffected ?? 0} row(s) affected`, 'ok');
+    }
+  });
+}
+
+async function runJs(code){
+  const logs = [];
+  const fakeConsole = {
+    log:  (...a) => { const s = a.map(fmtArg).join(' '); logs.push(s); printLine(s, 'out'); },
+    error:(...a) => { const s = a.map(fmtArg).join(' '); logs.push(s); printLine(s, 'err'); },
+    warn: (...a) => { const s = a.map(fmtArg).join(' '); logs.push(s); printLine(s, 'info'); },
+  };
+  const db = {
+    execute: (q) => dbClient.execute(q),
+    batch: (stmts, mode) => dbClient.batch(stmts, mode),
+  };
+  const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+  const fn = new AsyncFunction('db', 'console', code);
+  await fn(db, fakeConsole);
+}
+
+function fmtArg(a){
+  if(a === null) return 'null';
+  if(a === undefined) return 'undefined';
+  if(typeof a === 'object'){ try { return JSON.stringify(a, null, 2); } catch(e){ return String(a); } }
+  return String(a);
+}
+
+function renderResultSet(res){
+  const cols = res.columns || [];
+  const rows = res.rows || [];
+  if(cols.length === 0 && rows.length === 0){
+    printLine(`${res.rowsAffected ?? 0} row(s) affected`, 'ok');
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'res-table-wrap';
+  const table = document.createElement('table');
+  table.className = 'res-table';
+  const thead = document.createElement('tr');
+  cols.forEach(c => { const th = document.createElement('th'); th.textContent = c; thead.appendChild(th); });
+  table.appendChild(thead);
+  rows.forEach(r => {
+    const tr = document.createElement('tr');
+    cols.forEach(c => {
+      const td = document.createElement('td');
+      const v = r[c];
+      if(v === null || v === undefined){ td.textContent = 'NULL'; td.className = 'cell-null'; }
+      else td.textContent = String(v);
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  wrap.appendChild(table);
+  document.getElementById('output').appendChild(wrap);
+  const meta = document.createElement('div');
+  meta.className = 'res-meta';
+  meta.textContent = `${rows.length} row${rows.length===1?'':'s'} returned`;
+  document.getElementById('output').appendChild(meta);
+  document.getElementById('bOutput').scrollTop = 9999;
+}
+
+// ════════════════════════════════════════
+// SCHEMA
+// ════════════════════════════════════════
+async function loadSchema(){
+  if(!dbClient) return;
+  const el = document.getElementById('schemaList');
+  el.innerHTML = '<span style="color:var(--text3);font-style:italic">Loading schema…</span>';
+  document.getElementById('schemaRefreshBtn').style.display = 'inline-flex';
+  try{
+    const tablesRes = await dbClient.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    const tables = tablesRes.rows.map(r => r.name);
+    if(tables.length === 0){
+      el.innerHTML = '<span style="color:var(--text3);font-style:italic">No tables yet — create one to see it here</span>';
+      return;
+    }
+    el.innerHTML = '';
+    const schemaMap = {};
+    for(const t of tables){
+      const colsRes = await dbClient.execute(`PRAGMA table_info(${t})`);
+      schemaMap[t] = colsRes.rows.map(c => ({ name: c.name, type: c.type, pk: !!c.pk }));
+      const card = document.createElement('div');
+      card.className = 'schema-table';
+      const head = document.createElement('div');
+      head.className = 'schema-head';
+      head.innerHTML = `<span>🗂</span><span>${esc(t)}</span><span class="tc">${colsRes.rows.length} col${colsRes.rows.length===1?'':'s'}</span>`;
+      head.onclick = () => card.classList.toggle('open');
+      card.appendChild(head);
+      const colsWrap = document.createElement('div');
+      colsWrap.className = 'schema-cols';
+      colsRes.rows.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'schema-col';
+        row.innerHTML = `<span class="cn">${esc(c.name)}</span><span class="ct">${esc(c.type||'')}</span>${c.pk ? '<span class="cpk">PK</span>' : ''}`;
+        colsWrap.appendChild(row);
+      });
+      card.appendChild(colsWrap);
+      el.appendChild(card);
+    }
+    if(window.QBoltAutocomplete){
+      QBoltAutocomplete.setSchema(schemaMap);
+      ideLog('info', `Autocomplete map built: ${tables.length} table(s)`);
+    }
+  }catch(e){
+    el.innerHTML = `<span style="color:var(--red)">Failed to load schema: ${esc(e?.message||String(e))}</span>`;
+  }
+}
+window.loadSchema = loadSchema;
+
+// ════════════════════════════════════════
+// OUTPUT
+// ════════════════════════════════════════
+function printOut(text, cls){
+  const el = document.getElementById('output');
+  const sp = document.createElement('span');
+  sp.className = 'o-'+cls; sp.textContent = text;
+  el.appendChild(sp);
+  document.getElementById('bOutput').scrollTop = 9999;
+}
+function printLine(t, cls='out'){ printOut(t+'\n', cls); }
+function clearOutput(){ document.getElementById('output').innerHTML=''; document.getElementById('errBadge').classList.remove('on'); }
+window.clearOutput = clearOutput;
+
+function switchOut(name){
+  ['output','schema','hist','console'].forEach(n=>{
+    const bodyId = 'b'+n.charAt(0).toUpperCase()+n.slice(1);
+    const tabId = 'ot'+n.charAt(0).toUpperCase()+n.slice(1);
+    document.getElementById(bodyId).style.display = n===name ? 'block' : 'none';
+    document.getElementById(tabId).classList.toggle('active', n===name);
+  });
+  document.getElementById('schemaRefreshBtn').style.display = (name==='schema' && dbClient) ? 'inline-flex' : 'none';
+}
+window.switchOut = switchOut;
+
+let outCollapsed=false, outPanelSavedHeight='';
+function toggleOut(){
+  outCollapsed=!outCollapsed;
+  const panel=document.getElementById('outPanel');
+  if(outCollapsed){ outPanelSavedHeight=panel.style.height||''; panel.style.height='35px'; }
+  else{ panel.style.height=outPanelSavedHeight||''; }
+  panel.classList.toggle('collapsed',outCollapsed);
+  document.getElementById('panToggle').textContent=outCollapsed?'▲':'▼';
+  setTimeout(()=>editor && editor.refresh(),160);
+}
+window.toggleOut = toggleOut;
+
+function renderHistory(){
+  const el=document.getElementById('histList');
+  if(!runHistory.length){el.innerHTML='<span style="color:var(--text3);font-style:italic">No runs yet</span>';return;}
+  el.innerHTML=runHistory.map((h,i)=>`<div class="hr" onclick="loadHist(${i})"><div class="hm"><span class="hn">${h.mode.toUpperCase()}</span><span class="ht">${h.time}</span></div><div class="hp">${esc(h.code.trim().split('\n').find(l=>l.trim())||'')}</div></div>`).join('');
+}
+function loadHist(i){
+  const h=runHistory[i];
+  setMode(h.mode);
+  editor.setValue(h.code);
+  showToast('📋 Loaded from history');
+}
+window.loadHist = loadHist;
+
+// resize
+document.getElementById('resizeH').addEventListener('mousedown',e=>{
+  resizing=true;resY=e.clientY;resH=document.getElementById('outPanel').offsetHeight;
+  document.body.style.cursor='ns-resize';document.body.style.userSelect='none';
+  document.getElementById('resizeH').classList.add('drag');
+});
+let resizing=false,resY=0,resH=0;
+document.addEventListener('mousemove',e=>{
+  if(!resizing)return;
+  const h=Math.max(35,Math.min(600,resH+(resY-e.clientY)));
+  document.getElementById('outPanel').style.height=h+'px';
+  outPanelSavedHeight=h+'px';
+});
+document.addEventListener('mouseup',()=>{
+  if(resizing){resizing=false;document.body.style.cursor='';document.body.style.userSelect='';document.getElementById('resizeH').classList.remove('drag');editor&&editor.refresh();}
+});
+
+// ════════════════════════════════════════
+// UI HELPERS
+// ════════════════════════════════════════
+let sbOpen=true;
+function toggleSidebar(){
+  sbOpen=!sbOpen;
+  document.getElementById('sidebar').classList.toggle('hidden',!sbOpen);
+  setTimeout(()=>editor && editor.refresh(),210);
+}
+window.toggleSidebar = toggleSidebar;
+
+function toggleFind(){
+  const fb=document.getElementById('findBar');fb.classList.toggle('on');
+  if(fb.classList.contains('on')){const inp=document.getElementById('findInput');inp.focus();const s=editor.getSelection();if(s)inp.value=s;doFind();}
+}
+window.toggleFind = toggleFind;
+function doFind(){const q=document.getElementById('findInput').value;if(!q)return;const c=editor.getSearchCursor(q,editor.getCursor('from'));if(c.findNext())editor.setSelection(c.from(),c.to());}
+window.doFind = doFind;
+function findNext(){const q=document.getElementById('findInput').value;if(!q)return;const c=editor.getSearchCursor(q,editor.getCursor());if(c.findNext())editor.setSelection(c.from(),c.to());else{const c2=editor.getSearchCursor(q,{line:0,ch:0});if(c2.findNext())editor.setSelection(c2.from(),c2.to());}}
+window.findNext = findNext;
+function findPrev(){const q=document.getElementById('findInput').value;if(!q)return;const c=editor.getSearchCursor(q,editor.getCursor('from'));if(c.findPrevious())editor.setSelection(c.from(),c.to());}
+window.findPrev = findPrev;
+function findKey(e){if(e.key==='Enter')e.shiftKey?findPrev():findNext();if(e.key==='Escape')toggleFind();}
+window.findKey = findKey;
+
+function downloadScript(){
+  if(!editor) return;
+  const ext = mode === 'sql' ? 'sql' : 'js';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([editor.getValue()],{type:'text/plain'}));
+  a.download='qbolt_script.'+ext; a.click();
+  showToast('⬇  Downloaded qbolt_script.'+ext);
+}
+window.downloadScript = downloadScript;
+
+function setRunning(on){
+  document.getElementById('runIcon').innerHTML = on ? '<span class="spin-light"></span>' : '▶';
+  document.getElementById('runLabel').textContent = on ? 'Running…' : 'Run';
+  document.getElementById('runBtn').classList.toggle('running', on);
+}
+
+// ════════════════════════════════════════
+// TOAST STACK
+// ════════════════════════════════════════
+(function(){
+  const DURATION = 3000;
+  const stack = [];
+  function showToast(msg) {
+    const existing = stack.find(t => t.msg === msg);
+    if (existing) {
+      existing.count++;
+      existing.countEl.textContent = existing.count + 'x';
+      existing.countEl.style.display = '';
+      clearTimeout(existing.timer);
+      existing.timer = setTimeout(() => removeToast(existing), DURATION);
+      return;
+    }
+    const item = document.createElement('div');
+    item.className = 'toast-item';
+    const msgEl = document.createElement('span'); msgEl.style.flex='1'; msgEl.textContent=msg;
+    const countEl = document.createElement('span'); countEl.className='toast-count'; countEl.style.display='none';
+    item.appendChild(msgEl); item.appendChild(countEl);
+    document.getElementById('toastStack').appendChild(item);
+    requestAnimationFrame(() => requestAnimationFrame(() => item.classList.add('on')));
+    const entry = { msg, el:item, msgEl, countEl, count:1, timer:null };
+    entry.timer = setTimeout(() => removeToast(entry), DURATION);
+    stack.push(entry);
+  }
+  function removeToast(entry) {
+    const idx = stack.indexOf(entry); if (idx === -1) return;
+    stack.splice(idx, 1);
+    entry.el.classList.remove('on'); entry.el.classList.add('out');
+    setTimeout(() => entry.el.remove(), 220);
+  }
+  window.showToast = showToast;
+})();
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='f'){e.preventDefault();toggleFind();}
+  if(e.key==='Escape')document.getElementById('findBar')?.classList.remove('on');
+});
+
+// ════════════════════════════════════════
+// EDITOR CONTEXT MENU
+// ════════════════════════════════════════
+const ctxMenu = document.getElementById('ctxMenu');
+let ctxOpen = false;
+function openCtx(x, y){
+  const mw = 210, mh = ctxMenu.offsetHeight || 300;
+  const left = (x + mw > window.innerWidth) ? x - mw : x;
+  const top  = (y + mh > window.innerHeight) ? y - mh : y;
+  ctxMenu.style.left = left + 'px'; ctxMenu.style.top = top + 'px';
+  ctxMenu.classList.add('open'); ctxOpen = true;
+  document.getElementById('ctxCopy').style.display = (editor && editor.somethingSelected()) ? 'flex' : 'none';
+}
+function closeCtx(){ ctxMenu.classList.remove('open'); ctxOpen = false; }
+function ctxAction(action){
+  closeCtx();
+  switch(action){
+    case 'run': runCode(); break;
+    case 'comment': editor.execCommand('toggleComment'); editor.focus(); break;
+    case 'indent': editor.execCommand('indentMore'); editor.focus(); break;
+    case 'dedent': editor.execCommand('indentLess'); editor.focus(); break;
+    case 'selectall': editor.execCommand('selectAll'); editor.focus(); break;
+    case 'selectline': { const c=editor.getCursor(); editor.setSelection({line:c.line,ch:0},{line:c.line,ch:editor.getLine(c.line).length}); editor.focus(); break; }
+    case 'copy': { const sel=editor.getSelection(); if(sel) navigator.clipboard.writeText(sel).then(()=>showToast('⎘ Copied')); break; }
+    case 'paste': navigator.clipboard.readText().then(t=>{editor.replaceSelection(t);editor.focus();}).catch(()=>showToast('⚠️ Paste blocked by browser')); break;
+    case 'clearoutput': clearOutput(); break;
+  }
+}
+window.ctxAction = ctxAction;
+document.addEventListener('contextmenu', e=>{
+  const inWorkspace = e.target.closest('.editor-wrap, .CodeMirror');
+  if(inWorkspace && editor){ e.preventDefault(); openCtx(e.clientX+2, e.clientY+2); return; }
+  e.preventDefault();
+});
+document.addEventListener('click', e=>{ if(ctxOpen && !ctxMenu.contains(e.target)) closeCtx(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeCtx(); });
+
+// ════════════════════════════════════════
+// IDE CONSOLE
+// ════════════════════════════════════════
+function ideLog(level, msg){
+  const el = document.getElementById('ideConsole');
+  const row = document.createElement('div');
+  row.className = 'console-line';
+  row.style.cssText = 'display:flex;gap:8px;align-items:baseline;padding:2px 0;font-family:var(--mono);font-size:11.5px;line-height:1.6;';
+  const colorMap = { info:'var(--teal)', warn:'var(--yellow)', error:'var(--red)' };
+  row.innerHTML = `<span style="font-size:9.5px;font-weight:700;letter-spacing:.6px;flex-shrink:0;width:38px;color:${colorMap[level]||'var(--text2)'}">${level.toUpperCase()}</span><span style="color:var(--text2)">${esc(msg)}</span>`;
+  el.appendChild(row);
+  document.getElementById('bConsole').scrollTop = 9999;
+}
+
+// ════════════════════════════════════════
+// SETTINGS
+// ════════════════════════════════════════
+function openSettings(){
+  document.getElementById('settingLineNums').checked = ideSettings.lineNums;
+  document.getElementById('settingAutoBracket').checked = ideSettings.autoBracket;
+  document.getElementById('settingAutocomplete').checked = ideSettings.autocomplete;
+  document.getElementById('settingVerifier').checked = ideSettings.verifier;
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+window.openSettings = openSettings;
+function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
+window.closeSettings = closeSettings;
+function saveSetting(key, value){
+  if(key === 'autocomplete' && value && !window.QBoltAutocomplete){
+    document.getElementById('settingAutocomplete').checked = false;
+    showToast('⚠️ autocomplete.js not loaded');
+    return;
+  }
+  if(key === 'verifier' && value && !window.QBoltVerifier){
+    document.getElementById('settingVerifier').checked = false;
+    showToast('⚠️ verifier.js not loaded');
+    return;
+  }
+  ideSettings[key] = value;
+  if(key === 'verifier') ideLog('info', `Verifier ${value ? 'enabled' : 'disabled'}`);
+  if(key === 'autocomplete' && window.QBoltAutocomplete){
+    QBoltAutocomplete.setEnabled(value);
+    if(!value) QBoltAutocomplete.clearGhost();
+  }
+  if(!editor) return;
+  if(key === 'lineNums') editor.setOption('lineNumbers', value);
+  if(key === 'autoBracket') editor.setOption('autoCloseBrackets', value ? {pairs:'()[]{}\'\'""', explode:'[]{}'} : false);
+}
+window.saveSetting = saveSetting;
+document.getElementById('settingsOverlay').addEventListener('click', e=>{
+  if(e.target === document.getElementById('settingsOverlay')) closeSettings();
+});
+document.getElementById('warnModal').addEventListener('click', e=>{
+  if(e.target === document.getElementById('warnModal')) closeWarnModal();
+});
+
+ideLog('info', 'QBolt loaded — waiting for connection');
+</script>
+</body>
+</html>
