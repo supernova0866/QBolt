@@ -18,9 +18,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
-<script src="engine/autocomplete.js"></script>
-<script src="engine/verifier.js"></script>
-<script src="engine/formatter.js"></script>
+<script src="engine/autocomplete.js" data-engine="autocomplete"></script>
+<script src="engine/verifier.js" data-engine="verifier"></script>
+<script src="engine/formatter.js" data-engine="formatter"></script>
 <style>
 :root {
   --bg:#0b0d13; --bg2:#11141c; --bg3:#181c28; --bg4:#1f2436;
@@ -181,7 +181,7 @@ table.res-table tr:hover td{background:rgba(52,211,153,.05)}
 .loader-bar-wrap{width:320px;height:4px;background:var(--bg4);border-radius:4px;overflow:hidden;}
 .loader-bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--teal));border-radius:4px;}
 @keyframes loaderFlow{0%{width:0%;}100%{width:97%;}}
-.loader-bar.flowing{animation:loaderFlow 1.1s linear forwards;}
+.loader-bar.flowing{animation:loaderFlow 1.8s linear forwards;}
 .loader-text{font-family:var(--mono);font-size:11.5px;color:var(--text3);min-height:18px;text-align:center;max-width:340px;line-height:1.5;transition:opacity .25s ease;}
 
 /* CONNECTION SCREEN */
@@ -429,7 +429,13 @@ table.res-table tr:hover td{background:rgba(52,211,153,.05)}
   <div class="settings-panel">
     <div class="settings-header">
       <div class="settings-title">⚙ Settings</div>
-      <button class="settings-close" onclick="closeSettings()">✕</button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button class="settings-close" id="reloadEnginesBtn" title="Reload engine files" onclick="reloadEngines()" style="width:auto;padding:0 8px;gap:5px;font-size:11px;font-weight:700;color:var(--text2);">
+          <svg id="reloadIcon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          Reload Engines
+        </button>
+        <button class="settings-close" onclick="closeSettings()">✕</button>
+      </div>
     </div>
     <div class="settings-body">
       <div class="settings-section">Editor</div>
@@ -451,7 +457,7 @@ table.res-table tr:hover td{background:rgba(52,211,153,.05)}
       </div>
       <div class="settings-section">Session</div>
       <div class="settings-row">
-        <div class="settings-info"><span>Credentials</span><small>DB URL &amp; token are kept in memory only — never persisted to disk</small></div>
+        <div class="settings-info"><span>Credentials</span><small>DB URL &amp; token are kept in session storage — cleared when this tab closes, never sent anywhere but your database</small></div>
       </div>
       <div class="settings-row">
         <div class="settings-info"><span>Disconnect</span><small>Clear the session and return to the connection screen</small></div>
@@ -505,13 +511,90 @@ console.log(result.rows);
 // ════════════════════════════════════════
 // LOADER
 // ════════════════════════════════════════
-setTimeout(()=>{
+const LOADER_TEXTS = [
+  // Common (weight 10)
+  { t:'Setting things up...',              w:10 },
+  { t:'Hold on...',                        w:10 },
+  { t:'About done...',                     w:10 },
+  { t:'Hold your horses...',               w:10 },
+  { t:'Connecting the dots...',            w:10 },
+  { t:'Warming up the query engine...',    w:10 },
+  { t:'Dusting off the schema...',         w:10 },
+  { t:'Preparing the editor...',           w:10 },
+  { t:'Almost there...',                   w:10 },
+  { t:'Loadeth...',                        w:10 },
+  // Uncommon (weight 4)
+  { t:'Arrr! Loading, please wait...',     w:4 },
+  { t:'Bribing the query planner...',      w:4 },
+  { t:'Counting your rows in advance...',  w:4 },
+  { t:'Negotiating with the schema...',    w:4 },
+  { t:'Compiling vibes...',                w:4 },
+  { t:'Untangling foreign keys...',        w:4 },
+  { t:'Waking up the indexes...',          w:4 },
+  { t:'Reticulating relations...',         w:4 },
+  { t:'Prithee, loadeth, prithee wait...', w:4 },
+  { t:'*peeks at your tables*...',         w:4 },
+  // Rare (weight 1)
+  { t:'Summoning the query optimizer...',           w:1 },
+  { t:'Convincing SQLite it\'s not MySQL...',        w:1 },
+  { t:'Politely asking the database to hurry...',   w:1 },
+  { t:'Feeding the connection pool...',             w:1 },
+  { t:'Whispering sweet SELECTs...',                w:1 },
+  { t:'Normalizing our expectations...',            w:1 },
+  { t:'shit, hold on...',                           w:1 },
+  { t:'okay i ran out of ideas...',                 w:1 },
+  { t:'𓃭𓅱𓀀𓂧𓇌𓈖𓎼𓇯  𓊪𓃭𓇋𓀀𓊃𓇋  𓅱𓀀𓇌𓏏...',              w:1 },
+];
+
+function makeLoaderPicker(){
+  const pool = [];
+  LOADER_TEXTS.forEach(({t,w})=>{ for(let i=0;i<w;i++) pool.push(t); });
+  let last = null;
+  return function pick(){
+    const candidates = pool.filter(t=>t!==last);
+    const t = candidates[Math.floor(Math.random()*candidates.length)];
+    last = t;
+    return t;
+  };
+}
+
+(function initLoader(){
+  const bar = document.getElementById('loaderBar');
+  const textEl = document.getElementById('loaderText');
   const overlay = document.getElementById('loaderOverlay');
-  overlay.classList.add('hidden');
-  setTimeout(()=>overlay.remove(), 450);
-  document.getElementById('connOverlay').classList.add('on');
-  document.getElementById('connUrl').focus();
-}, 1100);
+  const TOTAL = 1800;
+
+  const pick = makeLoaderPicker();
+  textEl.textContent = pick();
+
+  const textTimer = setInterval(()=>{
+    textEl.style.opacity = '0';
+    setTimeout(()=>{
+      textEl.textContent = pick();
+      textEl.style.opacity = '1';
+    }, 180);
+  }, 550);
+
+  setTimeout(()=>{
+    clearInterval(textTimer);
+    bar.style.animation = 'none';
+    bar.style.width = '100%';
+    bar.style.transition = 'width .15s ease';
+    setTimeout(()=>{
+      overlay.classList.add('hidden');
+      setTimeout(()=>overlay.remove(), 450);
+      document.getElementById('connOverlay').classList.add('on');
+      const saved = getSession();
+      if(saved && saved.url){
+        document.getElementById('connUrl').value = saved.url;
+        document.getElementById('connToken').value = saved.token || '';
+        connectDb();
+      } else {
+        document.getElementById('connUrl').focus();
+      }
+    }, 180);
+  }, TOTAL);
+})();
 
 // ════════════════════════════════════════
 // EDITOR INIT
@@ -579,6 +662,24 @@ function renderSnippets(){
 }
 
 // ════════════════════════════════════════
+// SESSION STORAGE (credentials)
+// ════════════════════════════════════════
+const SESSION_KEY = 'qbolt_session';
+function saveSession(url, token){
+  try{ sessionStorage.setItem(SESSION_KEY, JSON.stringify({ url, token })); }
+  catch(e){ /* sessionStorage unavailable — fail silently, session just won't persist */ }
+}
+function getSession(){
+  try{
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function clearSession(){
+  try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){}
+}
+
+// ════════════════════════════════════════
 // CONNECTION
 // ════════════════════════════════════════
 async function connectDb(){
@@ -599,6 +700,7 @@ async function connectDb(){
     const client = createClient({ url, authToken: token || undefined });
     await client.execute('SELECT 1');
     dbClient = client;
+    saveSession(url, token);
     document.getElementById('connOverlay').classList.remove('on');
     let host = url;
     try { host = new URL(url.replace('libsql://','https://')).hostname; } catch(e){}
@@ -612,6 +714,7 @@ async function connectDb(){
     errEl.textContent = 'Connection failed: ' + (e?.message || String(e));
     errEl.classList.add('on');
     ideLog('error', 'Connection failed: ' + (e?.message || String(e)));
+    clearSession();
   }finally{
     btn.disabled = false;
     label.textContent = 'Connect';
@@ -621,12 +724,15 @@ window.connectDb = connectDb;
 
 function disconnectDb(){
   dbClient = null;
+  clearSession();
   document.getElementById('connOverlay').classList.add('on');
   document.getElementById('connErr').classList.remove('on');
+  document.getElementById('connUrl').value = '';
+  document.getElementById('connToken').value = '';
   document.getElementById('connPillText').textContent = 'Not connected';
   document.getElementById('schemaList').innerHTML = '<span style="color:var(--text3);font-style:italic">Connect to a database to see its schema</span>';
   closeSettings();
-  ideLog('info', 'Disconnected');
+  ideLog('info', 'Disconnected — session storage cleared');
   showToast('Disconnected');
 }
 window.disconnectDb = disconnectDb;
@@ -1070,6 +1176,57 @@ function ideLog(level, msg){
 // ════════════════════════════════════════
 // SETTINGS
 // ════════════════════════════════════════
+function reloadEngines(){
+  const icon = document.getElementById('reloadIcon');
+  icon.style.transition = 'transform 0.6s ease';
+  icon.style.transform = 'rotate(360deg)';
+  setTimeout(()=>{ icon.style.transition='none'; icon.style.transform='rotate(0deg)'; }, 650);
+
+  const engines = [
+    { name:'autocomplete', path:'engine/autocomplete.js', global:'QBoltAutocomplete', setting:'autocomplete' },
+    { name:'verifier',     path:'engine/verifier.js',     global:'QBoltVerifier',     setting:'verifier'     },
+    { name:'formatter',    path:'engine/formatter.js',    global:'QBoltFormatter',    setting:null           },
+  ];
+
+  let loaded = 0, failed = 0;
+
+  engines.forEach(eng => {
+    const old = document.querySelector(`script[data-engine="${eng.name}"]`);
+    if(old) old.remove();
+    delete window[eng.global];
+
+    const s = document.createElement('script');
+    s.src = eng.path + '?r=' + Date.now();
+    s.dataset.engine = eng.name;
+    s.onload = () => {
+      loaded++;
+      ideLog('info', `Reloaded engine/${eng.name}.js`);
+      if(eng.setting){
+        const el = document.getElementById('setting' + eng.setting.charAt(0).toUpperCase() + eng.setting.slice(1));
+        if(el) el.disabled = false;
+      }
+      if(eng.name === 'autocomplete' && window.QBoltAutocomplete && editor){
+        QBoltAutocomplete.attach(editor);
+        QBoltAutocomplete.setEnabled(ideSettings.autocomplete);
+      }
+      if(loaded + failed === engines.length){
+        showToast(failed === 0 ? '✔ All engines reloaded' : `⚠️ ${failed} engine(s) failed`);
+        switchOut('console');
+      }
+    };
+    s.onerror = () => {
+      failed++;
+      ideLog('warn', `Failed to reload engine/${eng.name}.js`);
+      if(loaded + failed === engines.length){
+        showToast(`⚠️ ${failed} engine(s) failed to load`);
+        switchOut('console');
+      }
+    };
+    document.head.appendChild(s);
+  });
+}
+window.reloadEngines = reloadEngines;
+
 function openSettings(){
   document.getElementById('settingLineNums').checked = ideSettings.lineNums;
   document.getElementById('settingAutoBracket').checked = ideSettings.autoBracket;
