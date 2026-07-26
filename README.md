@@ -38,6 +38,9 @@ The Schema tab lists every table in your connected database, along with column n
 ### Snippets
 A set of ready-to-use SQL and JS snippets sit in the sidebar: listing tables, creating a table, inserting rows, joins, aggregates, batch inserts, and seeding from JSON. Click any one to load it into the editor.
 
+### Auto-save
+Your SQL and JS scripts are saved to this browser automatically every 10 seconds, so switching modes, refreshing the page, or coming back later picks up right where you left off. Save manually or clear saved scripts anytime from the ⚙ Settings panel.
+
 ---
 
 ## Table Viewer
@@ -63,8 +66,9 @@ Tweak the IDE from the ⚙ Settings panel:
 | **Autocomplete** | Suggests table and column names from your DB schema |
 | **Line numbers** | Show or hide line numbers |
 | **Auto Mirror** | Auto-close brackets and quotes |
+| **Auto-save** | Saves your SQL and JS scripts to this browser every 10 seconds |
 
-A **Reload Engines** button in Settings hot-reloads the verifier, autocomplete, and formatter scripts without refreshing the page, handy while developing them.
+A **Reload Engines** button in Settings hot-reloads the verifier, autocomplete, formatter, and storage scripts without refreshing the page, handy while developing them.
 
 ---
 
@@ -72,8 +76,8 @@ A **Reload Engines** button in Settings hot-reloads the verifier, autocomplete, 
 
 Worth knowing before you rely on it for anything serious:
 
-- **No persistent workspace.** Unlike a typical IDE, QBolt doesn't save your script between sessions. Closing the tab clears everything, including your connection. Download or copy anything you want to keep.
-- **Session only, single tab.** Credentials live in `sessionStorage`, cleared when the tab closes. There's no account system and no syncing between devices or browsers.
+- **Scripts persist, credentials don't.** Your SQL and JS scripts are saved to this browser's localStorage, but your database connection isn't: the URL and token live in session storage only, cleared the moment you close the tab. Reconnect each time you return.
+- **Single browser, single device.** Saved scripts live in this browser only. There's no account system and no syncing between devices or browsers.
 - **No server in between.** QBolt talks directly to your Turso database through the libSQL client, straight from the browser. Your database URL and token pass through your browser only, never through any third party of ours.
 - **JS mode runs in the same page.** Scripts execute inside the browser tab itself using a real `AsyncFunction`, not a sandboxed worker. Treat it the same way you'd treat code you'd paste into a browser console.
 - **The formatter is regex-based, not a full SQL parser.** It handles common clause breaks and keyword casing well, but it won't gracefully handle every edge case in a deeply nested query.
