@@ -56,7 +56,7 @@ body{font-family:var(--ui);background:var(--bg);color:var(--text);display:flex;f
 .tbl-bar-title{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--text)}
 .tbl-bar-meta{font-family:var(--mono);font-size:10.5px;color:var(--text3)}
 .tbl-bar-space{flex:1}
-.pg-select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-family:var(--mono);font-size:11px;padding:5px 8px;outline:none}
+.pg-select{background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-family:var(--mono);font-size:11px;padding:5px 4px;outline:none;width:52px;text-align:center;text-align-last:center;flex-shrink:0}
 .pg-btn{width:26px;height:26px;border-radius:6px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .1s}
 .pg-btn:hover:not(:disabled){color:var(--text);background:var(--bg4)}
 .pg-btn:disabled{opacity:.3;cursor:not-allowed}
@@ -74,6 +74,8 @@ table.data-table tr:hover td{background:rgba(52,211,153,.05)}
 .nosession{position:fixed;inset:0;z-index:500;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;padding:32px}
 .nosession.on{display:flex}
 .nosession-hint{font-family:var(--mono);font-size:12px;color:var(--text2);max-width:320px;line-height:1.7}
+.nosession-hint a{color:var(--accent);text-decoration:underline}
+.nosession-hint a:hover{color:var(--text)}
 
 /* LOADER */
 .loader{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;transition:opacity .35s ease}
@@ -105,11 +107,11 @@ table.data-table tr:hover td{background:rgba(52,211,153,.05)}
 <div class="nosession" id="noSession">
   <div class="logo-mark" style="width:44px;height:44px;font-size:20px;border-radius:11px;box-shadow:0 0 18px rgba(52,211,153,.5)">⚡</div>
   <div style="font-weight:800;font-size:19px">No active QBolt session</div>
-  <div class="nosession-hint">Connect to a database in the main QBolt IDE tab first — this viewer reuses that connection. Once connected, reopen Table Viewer.</div>
+  <div class="nosession-hint">Connect to a database in the main <a href="https://supernova0866.github.io/QBolt/" target="_blank" rel="noopener">QBolt IDE</a> tab first — this viewer reuses that connection. Once connected, reopen Table Viewer.</div>
 </div>
 
 <div class="hdr">
-  <div class="logo"><div class="logo-mark">⚡</div>Q<em>Bolt</em></div>
+  <a class="logo" href="https://supernova0866.github.io/QBolt/" style="text-decoration:none;color:inherit" title="Back to QBolt IDE"><div class="logo-mark">⚡</div>Q<em>Bolt</em></a>
   <div class="hdr-title">Table Viewer</div>
   <div class="hdr-space"></div>
   <div class="conn-pill" id="connPill"><span class="conn-dot"></span><span id="connPillText">Connecting…</span></div>
@@ -258,7 +260,7 @@ async function openTable(name, toPage){
   document.getElementById('pageSizeSel').value = String(pageSize);
   document.getElementById('pageSizeSel').onchange = (e)=>{
     pageSize = parseInt(e.target.value) || 50;
-    openTable(name, 0);
+    loadPage(name, 0);
   };
   document.getElementById('prevBtn').onclick = () => { if(page > 0) loadPage(name, page - 1); };
   document.getElementById('nextBtn').onclick = () => loadPage(name, page + 1);
