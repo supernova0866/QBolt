@@ -21,6 +21,7 @@
 <script src="engine/autocomplete.js" data-engine="autocomplete"></script>
 <script src="engine/verifier.js" data-engine="verifier"></script>
 <script src="engine/formatter.js" data-engine="formatter"></script>
+<script src="engine/storage.js" data-engine="storage"></script>
 <style>
 :root {
   --bg:#0b0d13; --bg2:#11141c; --bg3:#181c28; --bg4:#1f2436;
@@ -465,7 +466,18 @@ table.res-table tr:hover td{background:rgba(52,211,153,.05)}
       </div>
       <div class="settings-section">Session</div>
       <div class="settings-row">
-        <div class="settings-info"><span>Credentials</span><small>DB URL &amp; token are kept in session storage — cleared when this tab closes, never sent anywhere but your database</small></div>
+        <div class="settings-info"><span>Auto-save</span><small>Saves your SQL &amp; JS scripts to this browser every 10s, so they survive a refresh</small></div>
+        <label class="toggle"><input type="checkbox" id="settingAutosave" checked onchange="saveSetting('autosave',this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="settings-row" style="gap:8px;">
+        <div class="settings-info">
+          <span>Saved scripts</span>
+          <small id="storageSavedAt">Not saved yet</small>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0;">
+          <button class="modal-btn confirm" style="font-size:11px;padding:5px 12px;" onclick="manualSave()">Save now</button>
+          <button class="modal-btn cancel" style="font-size:11px;padding:5px 12px;color:var(--red);" onclick="clearStorage()">Clear</button>
+        </div>
       </div>
       <div class="settings-row">
         <div class="settings-info"><span>Disconnect</span><small>Clear the session and return to the connection screen</small></div>
@@ -499,7 +511,10 @@ const JS_SNIPS = [
 // ════════════════════════════════════════
 let editor, dbClient = null, mode = 'sql', isRunning = false;
 let runHistory = [], errMarkers = [];
-let ideSettings = { lineNums:true, autoBracket:true, autocomplete:true, verifier:true };
+let ideSettings = { lineNums:true, autoBracket:true, autocomplete:true, verifier:true, autosave:true };
+let scripts = { sql: null, js: null }; // populated with DEFAULT_SQL/DEFAULT_JS below
+let workspaceDirty = false;
+let autosaveTimer = null;
 
 const DEFAULT_SQL = `-- Welcome to QBolt ⚡
 -- Connected to your Turso database. Try:
@@ -515,6 +530,9 @@ const DEFAULT_JS = `// QBolt JS mode — automate your database with plain JavaS
 const result = await db.execute("SELECT name FROM sqlite_master WHERE type='table'");
 console.log(result.rows);
 `;
+
+scripts.sql = DEFAULT_SQL;
+scripts.js = DEFAULT_JS;
 
 // ════════════════════════════════════════
 // LOADER
@@ -599,6 +617,13 @@ function makeLoaderPicker(){
 // EDITOR INIT
 // ════════════════════════════════════════
 function initEditor(){
+  if(window.QBoltStorage){
+    const saved = QBoltStorage.load();
+    if(saved){
+      if(typeof saved.sql === 'string') scripts.sql = saved.sql;
+      if(typeof saved.js === 'string') scripts.js = saved.js;
+    }
+  }
   editor = CodeMirror.fromTextArea(document.getElementById('editorEl'), {
     mode:'text/x-sql', lineNumbers:true, styleActiveLine:true,
     matchBrackets:true, autoCloseBrackets:{pairs:'()[]{}\'\'""', explode:'[]{}'},
@@ -611,7 +636,7 @@ function initEditor(){
       'Tab':cm=>cm.somethingSelected()?cm.indentSelection('add'):cm.replaceSelection('  ','end'),
     }
   });
-  editor.setValue(DEFAULT_SQL);
+  editor.setValue(scripts[mode]);
   editor.on('cursorActivity',()=>{
     const c=editor.getCursor();
     document.getElementById('stLn').textContent=c.line+1;
@@ -621,21 +646,22 @@ function initEditor(){
     if(sel.length){el.style.display='flex';document.getElementById('stSelN').textContent=sel.length}
     else el.style.display='none';
   });
+  editor.on('change', ()=> scheduleAutosave());
   setTimeout(()=>editor.refresh(),80);
 }
 
 function setMode(m){
+  if(editor) scripts[mode] = editor.getValue();
   mode = m;
   document.getElementById('modeSql').classList.toggle('active', m==='sql');
   document.getElementById('modeJs').classList.toggle('active', m==='js');
   document.getElementById('sbMode').textContent = m.toUpperCase();
-  const cur = editor.getValue().trim();
-  const isDefault = cur === DEFAULT_SQL.trim() || cur === DEFAULT_JS.trim() || cur === '';
   editor.setOption('mode', m === 'sql' ? 'text/x-sql' : 'javascript');
-  if(isDefault) editor.setValue(m === 'sql' ? DEFAULT_SQL : DEFAULT_JS);
+  editor.setValue(scripts[m]);
   renderSnippets();
   clearErrMarkers();
   editor.focus();
+  scheduleAutosave();
 }
 window.setMode = setMode;
 
@@ -765,6 +791,16 @@ async function initIde(){
   if(fmtOk){ ideLog('info', 'Loaded engine/formatter.js'); }
   else { ideLog('warn', 'formatter.js not found — SQL prettify disabled'); }
 
+  const stOk = await waitFor(()=>!!window.QBoltStorage);
+  if(stOk){
+    ideLog('info', 'Loaded engine/storage.js');
+    startAutosaveInterval();
+    updateSavedAtLabel();
+  } else {
+    ideLog('warn', 'storage.js not found — autosave disabled');
+    ideSettings.autosave = false;
+  }
+
   ideLog('info', 'QBolt ready');
 }
 
@@ -885,6 +921,55 @@ function manualVerify(){
   }
 }
 window.manualVerify = manualVerify;
+
+// ════════════════════════════════════════
+// STORAGE (SQL & JS scripts)
+// ════════════════════════════════════════
+function markDirty(){ workspaceDirty = true; }
+
+function scheduleAutosave(){
+  if(!ideSettings.autosave || !window.QBoltStorage) return;
+  markDirty();
+}
+
+function startAutosaveInterval(){
+  clearInterval(autosaveTimer);
+  autosaveTimer = setInterval(()=>{
+    if(!ideSettings.autosave || !window.QBoltStorage || !workspaceDirty || !editor) return;
+    scripts[mode] = editor.getValue();
+    QBoltStorage.save({ sql: scripts.sql, js: scripts.js });
+    workspaceDirty = false;
+    updateSavedAtLabel();
+  }, 10000);
+}
+
+function manualSave(){
+  if(!window.QBoltStorage){ showToast('⚠️ storage.js not loaded'); return; }
+  if(!ideSettings.autosave){ showToast('⚠️ Enable Auto-save in Settings first'); return; }
+  if(!editor) return;
+  scripts[mode] = editor.getValue();
+  const ok = QBoltStorage.save({ sql: scripts.sql, js: scripts.js });
+  if(ok){ workspaceDirty = false; showToast('💾 Scripts saved'); updateSavedAtLabel(); }
+  else { showToast('⚠️ Save failed, localStorage unavailable'); }
+}
+window.manualSave = manualSave;
+
+function clearStorage(){
+  if(!window.QBoltStorage){ showToast('⚠️ storage.js not loaded'); return; }
+  QBoltStorage.clear();
+  showToast('🗑 Saved scripts cleared');
+  updateSavedAtLabel();
+  ideLog('info', 'localStorage scripts cleared');
+}
+window.clearStorage = clearStorage;
+
+function updateSavedAtLabel(){
+  if(!window.QBoltStorage) return;
+  const el = document.getElementById('storageSavedAt');
+  if(!el) return;
+  const ts = QBoltStorage.savedAt();
+  el.textContent = ts ? 'Last saved: ' + new Date(ts).toLocaleTimeString() : 'Not saved yet';
+}
 
 async function autoRefreshSchema(){
   if(!dbClient) return;
@@ -1266,6 +1351,7 @@ function reloadEngines(){
     { name:'autocomplete', path:'engine/autocomplete.js', global:'QBoltAutocomplete', setting:'autocomplete' },
     { name:'verifier',     path:'engine/verifier.js',     global:'QBoltVerifier',     setting:'verifier'     },
     { name:'formatter',    path:'engine/formatter.js',    global:'QBoltFormatter',    setting:null           },
+    { name:'storage',      path:'engine/storage.js',      global:'QBoltStorage',      setting:'autosave'     },
   ];
 
   let loaded = 0, failed = 0;
@@ -1294,6 +1380,13 @@ function reloadEngines(){
         const vEl = document.getElementById('settingVerifier');
         if(vEl) vEl.checked = true;
       }
+      if(eng.name === 'storage' && window.QBoltStorage){
+        ideSettings.autosave = true;
+        const saEl = document.getElementById('settingAutosave');
+        if(saEl) saEl.checked = true;
+        startAutosaveInterval();
+        updateSavedAtLabel();
+      }
       if(loaded + failed === engines.length){
         showToast(failed === 0 ? '✔ All engines reloaded' : `⚠️ ${failed} engine(s) failed`);
         switchOut('console');
@@ -1317,6 +1410,8 @@ function openSettings(){
   document.getElementById('settingAutoBracket').checked = ideSettings.autoBracket;
   document.getElementById('settingAutocomplete').checked = ideSettings.autocomplete;
   document.getElementById('settingVerifier').checked = ideSettings.verifier;
+  document.getElementById('settingAutosave').checked = ideSettings.autosave;
+  updateSavedAtLabel();
   document.getElementById('settingsOverlay').classList.add('open');
 }
 window.openSettings = openSettings;
@@ -1333,12 +1428,19 @@ function saveSetting(key, value){
     showToast('⚠️ verifier.js not loaded');
     return;
   }
+  if(key === 'autosave' && value && !window.QBoltStorage){
+    document.getElementById('settingAutosave').checked = false;
+    showToast('⚠️ storage.js not loaded');
+    return;
+  }
   ideSettings[key] = value;
   if(key === 'verifier') ideLog('info', `Verifier ${value ? 'enabled' : 'disabled'}`);
   if(key === 'autocomplete' && window.QBoltAutocomplete){
     QBoltAutocomplete.setEnabled(value);
     if(!value) QBoltAutocomplete.clearGhost();
   }
+  if(key === 'autosave' && value){ startAutosaveInterval(); }
+  if(key === 'autosave' && !value){ clearInterval(autosaveTimer); }
   if(!editor) return;
   if(key === 'lineNums') editor.setOption('lineNumbers', value);
   if(key === 'autoBracket') editor.setOption('autoCloseBrackets', value ? {pairs:'()[]{}\'\'""', explode:'[]{}'} : false);
