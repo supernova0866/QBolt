@@ -55,6 +55,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--ui);display:flex;f
 .run-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px rgba(52,211,153,.5);filter:brightness(1.08)}
 .run-btn:active{transform:none}
 .run-btn.running{background:linear-gradient(135deg,#ff5f74,#b0002e);box-shadow:0 2px 14px rgba(255,95,116,.35);color:#fff}
+.icon-btn#verifyBtn:hover{color:var(--green);}
 
 /* WORKSPACE */
 .workspace{display:flex;flex:1;overflow:hidden}
@@ -312,9 +313,10 @@ table.res-table tr:hover td{background:rgba(52,211,153,.05)}
   </div>
   <div class="tb-right">
     <button class="icon-btn" title="Toggle sidebar (Ctrl+B)" onclick="toggleSidebar()">☰</button>
-    <button class="icon-btn" title="Find (Ctrl+F)" onclick="toggleFind()">⌕</button>
     <button class="icon-btn" title="Format SQL" onclick="formatCode()">✨</button>
+    <button class="icon-btn" title="Find (Ctrl+F)" onclick="toggleFind()">⌕</button>
     <button class="icon-btn" title="Download script" onclick="downloadScript()">↓</button>
+    <button class="icon-btn" id="verifyBtn" title="Verify code" onclick="manualVerify()">✔</button>
     <button class="run-btn" id="runBtn" onclick="runCode()">
       <span id="runIcon">▶</span><span id="runLabel">Run</span>
     </button>
@@ -854,6 +856,35 @@ function formatCode(){
   showToast('✨ Formatted');
 }
 window.formatCode = formatCode;
+
+function manualVerify(){
+  if(!editor) return;
+  if(!window.QBoltVerifier){ showToast('⚠️ verifier.js not loaded'); return; }
+  const code = editor.getValue().trim();
+  if(!code){ showToast('ℹ️ Nothing to verify, editor is empty'); return; }
+
+  clearOutput();
+  printLine(`✔  Verifying ${mode.toUpperCase()} code…`, 'info');
+  const check = QBoltVerifier.verify(code, mode);
+  const errors = (check.issues || []).filter(i => i.severity === 'error');
+  const warnings = (check.issues || []).filter(i => i.severity === 'warning');
+
+  if(errors.length){
+    errors.forEach(i => printLine('✖  ' + i.message, 'err'));
+    document.getElementById('errBadge').classList.add('on');
+    ideLog('warn', `Verified: ${errors.length} error(s) found`);
+    showToast(`⚠️ ${errors.length} issue(s) found`);
+  } else if(warnings.length){
+    warnings.forEach(i => printLine('⚠  ' + i.message, 'info'));
+    ideLog('info', `Verified: ${warnings.length} warning(s) found`);
+    showToast(`⚠️ ${warnings.length} warning(s) found`);
+  } else {
+    printLine('✔  No issues found, code looks good!', 'ok');
+    ideLog('info', 'Verified: OK');
+    showToast('✔ All clear');
+  }
+}
+window.manualVerify = manualVerify;
 
 async function autoRefreshSchema(){
   if(!dbClient) return;
